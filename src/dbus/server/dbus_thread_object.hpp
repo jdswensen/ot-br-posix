@@ -106,6 +106,7 @@ private:
     void UpdateMeshCopTxtHandler(DBusRequest &aRequest);
     void GetPropertiesHandler(DBusRequest &aRequest);
     void LeaveNetworkHandler(DBusRequest &aRequest);
+    void TakeoverLeaderHandler(DBusRequest &aRequest);
     void SetNat64Enabled(DBusRequest &aRequest);
 
     void IntrospectHandler(DBusRequest &aRequest);

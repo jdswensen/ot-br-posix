@@ -230,6 +230,10 @@
       <arg name="enable" type="b" direction="in"/>
     </method>
 
+    <!-- TakeoverLeader: Takeover the Leader role by increasing the partition weight. -->
+    <method name="TakeoverLeader">
+    </method>
+
     <!-- MeshLocalPrefix: The /64 mesh-local prefix.  -->
     <property name="MeshLocalPrefix" type="ay" access="readwrite">
       <annotation name="org.freedesktop.DBus.Property.EmitsChangedSignal" value="false"/>

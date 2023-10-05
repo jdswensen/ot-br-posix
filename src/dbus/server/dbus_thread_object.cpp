@@ -146,6 +146,8 @@ otbrError DBusThreadObject::Init(void)
                    std::bind(&DBusThreadObject::LeaveNetworkHandler, this, _1));
     RegisterMethod(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_SET_NAT64_ENABLED_METHOD,
                    std::bind(&DBusThreadObject::SetNat64Enabled, this, _1));
+    RegisterMethod(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_BECOME_LEADER_METHOD,
+                   std::bind(&DBusThreadObject::TakeoverLeaderHandler, this, _1));
 
     RegisterMethod(DBUS_INTERFACE_INTROSPECTABLE, DBUS_INTROSPECT_METHOD,
                    std::bind(&DBusThreadObject::IntrospectHandler, this, _1));
@@ -1693,6 +1695,22 @@ void DBusThreadObject::LeaveNetworkHandler(DBusRequest &aRequest)
             exit(kExitCodeShouldRestart);
         }
     });
+}
+
+otError DBusThreadObject::TakeoverLeaderHandler(DBusRequest &aRequest)
+{
+    auto threadHelper = mNcp->GetThreadHelper();
+    otError error = OT_ERROR_NONE;
+    uint8_t weight = otThreadGetLocalLeaderWeight(threadHelper->GetInstance());
+
+    // todo make sure role is not detached
+    //VerifyOrExit(weight < OT_THREAD_LEADER_WEIGHT_MAX, error = OT_ERROR_REJECTED);
+
+    otThreadSetLocalLeaderWeight(threadHelper->GetInstance(), weight + 1);
+    otThreadBecomeLeader(threadHelper->GetInstance());
+
+exit:
+    aRequest.ReplyOtResult(error);
 }
 
 #if OTBR_ENABLE_NAT64
