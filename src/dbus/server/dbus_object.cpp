@@ -223,6 +223,7 @@ void DBusObject::GetAllPropertiesMethodHandler(DBusRequest &aRequest)
                      error = OT_ERROR_FAILED);
         VerifyOrExit(dbus_message_iter_open_container(&subIter, DBUS_TYPE_DICT_ENTRY, nullptr, &dictEntryIter),
                      error = OT_ERROR_FAILED);
+        otbrLogDebug("GetAll: %s", p.first.c_str());
         VerifyOrExit(DBusMessageEncode(&dictEntryIter, p.first) == OTBR_ERROR_NONE, error = OT_ERROR_FAILED);
 
         SuccessOrExit(error = p.second(dictEntryIter));
