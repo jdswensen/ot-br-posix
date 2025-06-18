@@ -73,6 +73,29 @@
 using std::placeholders::_1;
 using std::placeholders::_2;
 
+static std::string GetSrpServerStateName(otSrpServerState aState)
+{
+    std::string stateName;
+
+    switch (aState)
+    {
+    case OT_SRP_SERVER_STATE_DISABLED:
+        stateName = OTBR_SRP_SERVER_STATE_NAME_DISABLED;
+        break;
+    case OT_SRP_SERVER_STATE_RUNNING:
+        stateName = OTBR_SRP_SERVER_STATE_NAME_RUNNING;
+        break;
+    case OT_SRP_SERVER_STATE_STOPPED:
+        stateName = OTBR_SRP_SERVER_STATE_NAME_STOPPED;
+        break;
+    
+    default:
+        break;
+    }
+
+    return stateName;
+}
+
 #if OTBR_ENABLE_NAT64
 static std::string GetNat64StateName(otNat64State aState)
 {
@@ -169,6 +192,10 @@ otbrError DBusThreadObjectRcp::Init(void)
                    std::bind(&DBusThreadObjectRcp::LeaveNetworkHandler, this, _1));
     RegisterMethod(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_SET_NAT64_ENABLED_METHOD,
                    std::bind(&DBusThreadObjectRcp::SetNat64Enabled, this, _1));
+    RegisterMethod(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_SET_SRP_SERVER_AUTO_ENABLED_METHOD,
+                   std::bind(&DBusThreadObjectRcp::SetSrpServerAutoEnabled, this, _1));
+    RegisterMethod(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_SET_SRP_SERVER_ENABLED_METHOD,
+                   std::bind(&DBusThreadObjectRcp::SetSrpServerEnabled, this, _1));
 #if OTBR_ENABLE_BORDER_AGENT
     RegisterMethod(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_ACTIVATE_EPHEMERAL_KEY_MODE_METHOD,
                    std::bind(&DBusThreadObjectRcp::ActivateEphemeralKeyModeHandler, this, _1));
@@ -290,6 +317,10 @@ otbrError DBusThreadObjectRcp::Init(void)
                                std::bind(&DBusThreadObjectRcp::GetRadioCoexMetrics, this, _1));
     RegisterGetPropertyHandler(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_PROPERTY_BORDER_ROUTING_COUNTERS,
                                std::bind(&DBusThreadObjectRcp::GetBorderRoutingCountersHandler, this, _1));
+    RegisterGetPropertyHandler(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_PROPERTY_SRP_SERVER_AUTO_ENABLE_STATE,
+                               std::bind(&DBusThreadObjectRcp::GetSrpServerAutoEnableState, this, _1));
+    RegisterGetPropertyHandler(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_PROPERTY_SRP_SERVER_STATE,
+                               std::bind(&DBusThreadObjectRcp::GetSrpServerState, this, _1));
     RegisterGetPropertyHandler(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_PROPERTY_NAT64_STATE,
                                std::bind(&DBusThreadObjectRcp::GetNat64State, this, _1));
     RegisterGetPropertyHandler(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_PROPERTY_NAT64_MAPPINGS,
@@ -1834,6 +1865,54 @@ void DBusThreadObjectRcp::LeaveNetworkHandler(DBusRequest &aRequest)
             exit(kExitCodeShouldRestart);
         }
     });
+}
+
+void DBusThreadObjectRcp::SetSrpServerEnabled(DBusRequest &aRequest)
+{
+    otError error = OT_ERROR_NONE;
+    bool    enable;
+    auto    args = std::tie(enable);
+
+    VerifyOrExit(DBusMessageToTuple(*aRequest.GetMessage(), args) == OTBR_ERROR_NONE, error = OT_ERROR_INVALID_ARGS);
+    otSrpServerSetEnabled(mHost.GetInstance(), enable);
+
+exit:
+    aRequest.ReplyOtResult(error);
+}
+
+otError DBusThreadObjectRcp::GetSrpServerState(DBusMessageIter &aIter)
+{
+    std::string state = GetSrpServerStateName(otSrpServerGetState(mHost.GetInstance()));
+    otError     error        = OT_ERROR_NONE;
+
+    VerifyOrExit(DBusMessageEncodeToVariant(&aIter, state) == OTBR_ERROR_NONE, error = OT_ERROR_INVALID_ARGS);
+
+exit:
+    return error;
+}
+
+void DBusThreadObjectRcp::SetSrpServerAutoEnabled(DBusRequest &aRequest)
+{
+    otError error = OT_ERROR_NONE;
+    bool    enable;
+    auto    args = std::tie(enable);
+
+    VerifyOrExit(DBusMessageToTuple(*aRequest.GetMessage(), args) == OTBR_ERROR_NONE, error = OT_ERROR_INVALID_ARGS);
+    otSrpServerSetAutoEnableMode(mHost.GetInstance(), enable);
+
+exit:
+    aRequest.ReplyOtResult(error);
+}
+
+otError DBusThreadObjectRcp::GetSrpServerAutoEnableState(DBusMessageIter &aIter)
+{
+    bool state = otSrpServerIsAutoEnableMode(mHost.GetInstance());
+    otError     error        = OT_ERROR_NONE;
+
+    VerifyOrExit(DBusMessageEncodeToVariant(&aIter, state) == OTBR_ERROR_NONE, error = OT_ERROR_INVALID_ARGS);
+
+exit:
+    return error;
 }
 
 #if OTBR_ENABLE_NAT64

@@ -778,6 +778,11 @@
       <annotation name="org.freedesktop.DBus.Property.EmitsChangedSignal" value="false"/>
     </property>
 
+    <!-- SrpServerState: The state of the SRP Server -->
+    <property name="SrpServerState" type="s" access="read">
+      <annotation name="org.freedesktop.DBus.Property.EmitsChangedSignal" value="false"/>
+    </property>
+
     <!-- Nat64State: The state of NAT64
     <literallayout>
         struct {
