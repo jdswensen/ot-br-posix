@@ -106,6 +106,8 @@ private:
     void GetPropertiesHandler(DBusRequest &aRequest);
     void LeaveNetworkHandler(DBusRequest &aRequest);
     void SetNat64Enabled(DBusRequest &aRequest);
+    void SetSrpServerEnabled(DBusRequest &aRequest);
+    void SetSrpServerAutoEnabled(DBusRequest &aRequest);
 #if OTBR_ENABLE_BORDER_AGENT
     void ActivateEphemeralKeyModeHandler(DBusRequest &aRequest);
     void DeactivateEphemeralKeyModeHandler(DBusRequest &aRequest);
@@ -171,6 +173,8 @@ private:
     otError GetTrelInfoHandler(DBusMessageIter &aIter);
     otError GetRadioCoexMetrics(DBusMessageIter &aIter);
     otError GetBorderRoutingCountersHandler(DBusMessageIter &aIter);
+    otError GetSrpServerState(DBusMessageIter &aIter);
+    otError GetSrpServerAutoEnableState(DBusMessageIter &aIter);
     otError GetNat64State(DBusMessageIter &aIter);
     otError GetNat64Cidr(DBusMessageIter &aIter);
     otError GetNat64Mappings(DBusMessageIter &aIter);
