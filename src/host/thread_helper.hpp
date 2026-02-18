@@ -75,6 +75,7 @@ public:
     using Dhcp6PdStateCallback = std::function<void(otBorderRoutingDhcp6PdState)>;
 #endif
     using MeshDiagTopologyHandler = std::function<void(otError, otMeshDiagRouterInfo *)>;
+    using MeshDiagChildTableHandler = std::function<void(otError, const std::vector<otMeshDiagChildEntry> &)>;
 
     /**
      * The constructor of a Thread helper.
@@ -140,6 +141,15 @@ public:
      *
      */
     void GetMeshDiagTopology(std::vector<std::string> args, MeshDiagTopologyHandler aHandler);
+
+    /**
+     * This method performs an IEEE 802.15.4 Mesh Diag Childtable.
+     *
+     * @param[in] rloc16         Rloc16 value of router
+     * @param[in] aHandler       The meshdiag childtable result handler.
+     *
+     */
+    void GetMeshDiagChildTable(uint16_t rloc16, MeshDiagChildTableHandler aHandler);
 
     /**
      * This method attaches the device to the Thread network.
@@ -274,6 +284,9 @@ private:
     static void MeshDiagTopologyCallback(otError aError, otMeshDiagRouterInfo *aRouterInfo, void *aThreadHelper);
     void        MeshDiagTopologyCallback(otError aError, otMeshDiagRouterInfo *aRouterInfo);
 
+    static void MeshDiagChildTableCallback(otError aError, const otMeshDiagChildEntry *aChildEntry, void *aThreadHelper);
+    void        MeshDiagChildTableCallback(otError aError, const otMeshDiagChildEntry *aChildEntry);
+
     static void JoinerCallback(otError aError, void *aThreadHelper);
     void        JoinerCallback(otError aResult);
 
@@ -303,6 +316,9 @@ private:
     std::vector<otEnergyScanResult> mEnergyScanResults;
 
     MeshDiagTopologyHandler mMeshDiagTopologyHandler;
+
+    std::vector<otMeshDiagChildEntry> mMeshDiagChildTableResults;
+    MeshDiagChildTableHandler         mMeshDiagChildTableHandler;
 
     std::vector<DeviceRoleHandler>    mDeviceRoleHandlers;
     std::vector<DatasetChangeHandler> mActiveDatasetChangeHandlers;

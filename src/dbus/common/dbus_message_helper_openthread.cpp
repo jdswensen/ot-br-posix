@@ -1338,5 +1338,75 @@ exit:
     return error;
 }
 
+otbrError DBusMessageEncode(DBusMessageIter *aIter, const MeshDiagChildEntry &aMeshDiagChildEntry)
+{
+    DBusMessageIter sub;
+    otbrError       error = OTBR_ERROR_NONE;
+
+    VerifyOrExit(dbus_message_iter_open_container(aIter, DBUS_TYPE_STRUCT, nullptr, &sub), error = OTBR_ERROR_DBUS);
+
+    SuccessOrExit(error = DBusMessageEncode(&sub, aMeshDiagChildEntry.mExtAddress));
+    SuccessOrExit(error = DBusMessageEncode(&sub, aMeshDiagChildEntry.mTimeout));
+    SuccessOrExit(error = DBusMessageEncode(&sub, aMeshDiagChildEntry.mAge));
+    SuccessOrExit(error = DBusMessageEncode(&sub, aMeshDiagChildEntry.mConnectionTime));
+    SuccessOrExit(error = DBusMessageEncode(&sub, aMeshDiagChildEntry.mCslTimeout));
+    SuccessOrExit(error = DBusMessageEncode(&sub, aMeshDiagChildEntry.mRloc16));
+    SuccessOrExit(error = DBusMessageEncode(&sub, aMeshDiagChildEntry.mVersion));
+    SuccessOrExit(error = DBusMessageEncode(&sub, aMeshDiagChildEntry.mSupervisionInterval));
+    SuccessOrExit(error = DBusMessageEncode(&sub, aMeshDiagChildEntry.mFrameErrorRate));
+    SuccessOrExit(error = DBusMessageEncode(&sub, aMeshDiagChildEntry.mMessageErrorRate));
+    SuccessOrExit(error = DBusMessageEncode(&sub, aMeshDiagChildEntry.mQueuedMessageCount));
+    SuccessOrExit(error = DBusMessageEncode(&sub, aMeshDiagChildEntry.mCslPeriod));
+    SuccessOrExit(error = DBusMessageEncode(&sub, aMeshDiagChildEntry.mAverageRssi));
+    SuccessOrExit(error = DBusMessageEncode(&sub, aMeshDiagChildEntry.mLastRssi));
+    SuccessOrExit(error = DBusMessageEncode(&sub, aMeshDiagChildEntry.mLinkMargin));
+    SuccessOrExit(error = DBusMessageEncode(&sub, aMeshDiagChildEntry.mCslChannel));
+    SuccessOrExit(error = DBusMessageEncode(&sub, aMeshDiagChildEntry.mRxOnWhenIdle));
+    SuccessOrExit(error = DBusMessageEncode(&sub, aMeshDiagChildEntry.mDeviceTypeFtd));
+    SuccessOrExit(error = DBusMessageEncode(&sub, aMeshDiagChildEntry.mFullNetData));
+    SuccessOrExit(error = DBusMessageEncode(&sub, aMeshDiagChildEntry.mCslSynchronized));
+    SuccessOrExit(error = DBusMessageEncode(&sub, aMeshDiagChildEntry.mSupportsErrRate));
+
+    VerifyOrExit(dbus_message_iter_close_container(aIter, &sub), error = OTBR_ERROR_DBUS);
+
+exit:
+    return error;
+}
+
+otbrError DBusMessageExtract(DBusMessageIter *aIter, MeshDiagChildEntry &aMeshDiagChildEntry)
+{
+    DBusMessageIter sub;
+    otbrError       error = OTBR_ERROR_NONE;
+
+    VerifyOrExit(dbus_message_iter_get_arg_type(aIter) == DBUS_TYPE_STRUCT, error = OTBR_ERROR_DBUS);
+    dbus_message_iter_recurse(aIter, &sub);
+
+    SuccessOrExit(error = DBusMessageExtract(&sub, aMeshDiagChildEntry.mExtAddress));
+    SuccessOrExit(error = DBusMessageExtract(&sub, aMeshDiagChildEntry.mTimeout));
+    SuccessOrExit(error = DBusMessageExtract(&sub, aMeshDiagChildEntry.mAge));
+    SuccessOrExit(error = DBusMessageExtract(&sub, aMeshDiagChildEntry.mConnectionTime));
+    SuccessOrExit(error = DBusMessageExtract(&sub, aMeshDiagChildEntry.mCslTimeout));
+    SuccessOrExit(error = DBusMessageExtract(&sub, aMeshDiagChildEntry.mRloc16));
+    SuccessOrExit(error = DBusMessageExtract(&sub, aMeshDiagChildEntry.mVersion));
+    SuccessOrExit(error = DBusMessageExtract(&sub, aMeshDiagChildEntry.mSupervisionInterval));
+    SuccessOrExit(error = DBusMessageExtract(&sub, aMeshDiagChildEntry.mFrameErrorRate));
+    SuccessOrExit(error = DBusMessageExtract(&sub, aMeshDiagChildEntry.mMessageErrorRate));
+    SuccessOrExit(error = DBusMessageExtract(&sub, aMeshDiagChildEntry.mQueuedMessageCount));
+    SuccessOrExit(error = DBusMessageExtract(&sub, aMeshDiagChildEntry.mCslPeriod));
+    SuccessOrExit(error = DBusMessageExtract(&sub, aMeshDiagChildEntry.mAverageRssi));
+    SuccessOrExit(error = DBusMessageExtract(&sub, aMeshDiagChildEntry.mLastRssi));
+    SuccessOrExit(error = DBusMessageExtract(&sub, aMeshDiagChildEntry.mLinkMargin));
+    SuccessOrExit(error = DBusMessageExtract(&sub, aMeshDiagChildEntry.mCslChannel));
+    SuccessOrExit(error = DBusMessageExtract(&sub, aMeshDiagChildEntry.mRxOnWhenIdle));
+    SuccessOrExit(error = DBusMessageExtract(&sub, aMeshDiagChildEntry.mDeviceTypeFtd));
+    SuccessOrExit(error = DBusMessageExtract(&sub, aMeshDiagChildEntry.mFullNetData));
+    SuccessOrExit(error = DBusMessageExtract(&sub, aMeshDiagChildEntry.mCslSynchronized));
+    SuccessOrExit(error = DBusMessageExtract(&sub, aMeshDiagChildEntry.mSupportsErrRate));
+
+    dbus_message_iter_next(aIter);
+exit:
+    return error;
+}
+
 } // namespace DBus
 } // namespace otbr

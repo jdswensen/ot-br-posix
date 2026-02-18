@@ -123,6 +123,8 @@ otbrError DBusMessageEncode(DBusMessageIter *aIter, const MeshDiagRouterInfo &aM
 otbrError DBusMessageExtract(DBusMessageIter *aIter, MeshDiagRouterInfo &aMeshDiagRouterInfo);
 otbrError DBusMessageEncode(DBusMessageIter *aIter, const MeshDiagChildInfo &aMeshDiagChildInfo);
 otbrError DBusMessageExtract(DBusMessageIter *aIter, MeshDiagChildInfo &aMeshDiagChildInfo);
+otbrError DBusMessageEncode(DBusMessageIter *aIter, const MeshDiagChildEntry &aMeshDiagChildEntry);
+otbrError DBusMessageExtract(DBusMessageIter *aIter, MeshDiagChildEntry &aMeshDiagChildEntry);
 
 template <typename T> struct DBusTypeTrait;
 
@@ -419,6 +421,11 @@ template <> struct DBusTypeTrait<MeshDiagChildInfo>
 template <> struct DBusTypeTrait<MeshDiagRouterInfo>
 {
     static constexpr const char *TYPE_AS_STRING = "(tqyqbbbbaya(qybb)aay)";
+};
+
+template <> struct DBusTypeTrait<MeshDiagChildEntry>
+{
+    static constexpr const char *TYPE_AS_STRING = "(tuuuuqqqqqqqnnyybbbbb)";
 };
 
 template <> struct DBusTypeTrait<int8_t>

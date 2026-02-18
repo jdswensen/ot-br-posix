@@ -173,6 +173,8 @@ otbrError DBusThreadObjectRcp::Init(void)
 #endif
     RegisterMethod(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_GET_MESH_DIAG_TOPOLOGY_METHOD,
                    std::bind(&DBusThreadObjectRcp::MeshDiagTopologyHandler, this, _1));
+    RegisterMethod(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_GET_MESH_DIAG_CHILDTABLE_METHOD,
+                   std::bind(&DBusThreadObjectRcp::MeshDiagChildTableHandler, this, _1));
 
     RegisterMethod(DBUS_INTERFACE_INTROSPECTABLE, DBUS_INTROSPECT_METHOD,
                    std::bind(&DBusThreadObjectRcp::IntrospectHandler, this, _1));
@@ -516,6 +518,68 @@ void DBusThreadObjectRcp::ReplyMeshDiagTopologyResult(DBusRequest &aRequest, otE
         aRequest.Reply(std::tie(mMeshDiagResults));
         mMeshDiagResults.clear();
         return;
+    }
+}
+
+void DBusThreadObjectRcp::MeshDiagChildTableHandler(DBusRequest &aRequest)
+{
+    otError  error        = OT_ERROR_NONE;
+    auto     threadHelper = mHost.GetThreadHelper();
+    uint16_t rloc16;
+    auto     args = std::tie(rloc16);
+
+    VerifyOrExit(DBusMessageToTuple(*aRequest.GetMessage(), args) == OTBR_ERROR_NONE, error = OT_ERROR_INVALID_ARGS);
+
+    threadHelper->GetMeshDiagChildTable(
+        rloc16, std::bind(&DBusThreadObjectRcp::ReplyMeshDiagChildTableResult, this, aRequest, _1, _2));
+exit:
+    if (error != OT_ERROR_NONE)
+    {
+        aRequest.ReplyOtResult(error);
+    }
+}
+
+void DBusThreadObjectRcp::ReplyMeshDiagChildTableResult(DBusRequest                                &aRequest,
+                                                        otError                                     aError,
+                                                        const std::vector<otMeshDiagChildEntry> &aResult)
+{
+    std::vector<MeshDiagChildEntry> results;
+
+    if (aError != OT_ERROR_NONE)
+    {
+        aRequest.ReplyOtResult(aError);
+    }
+    else
+    {
+        for (const auto &r : aResult)
+        {
+            MeshDiagChildEntry result;
+
+            result.mRxOnWhenIdle        = r.mRxOnWhenIdle;
+            result.mDeviceTypeFtd       = r.mDeviceTypeFtd;
+            result.mFullNetData         = r.mFullNetData;
+            result.mCslSynchronized     = r.mCslSynchronized;
+            result.mSupportsErrRate     = r.mSupportsErrRate;
+            result.mRloc16              = r.mRloc16;
+            result.mExtAddress          = ConvertOpenThreadUint64(r.mExtAddress.m8);
+            result.mVersion             = r.mVersion;
+            result.mTimeout             = r.mTimeout;
+            result.mAge                 = r.mAge;
+            result.mConnectionTime      = r.mConnectionTime;
+            result.mSupervisionInterval = r.mSupervisionInterval;
+            result.mLinkMargin          = r.mLinkMargin;
+            result.mAverageRssi         = r.mAverageRssi;
+            result.mLastRssi            = r.mLastRssi;
+            result.mFrameErrorRate      = r.mFrameErrorRate;
+            result.mMessageErrorRate    = r.mMessageErrorRate;
+            result.mQueuedMessageCount  = r.mQueuedMessageCount;
+            result.mCslPeriod           = r.mCslPeriod;
+            result.mCslTimeout          = r.mCslTimeout;
+            result.mCslChannel          = r.mCslChannel;
+
+            results.emplace_back(result);
+        }
+        aRequest.Reply(std::tie(results));
     }
 }
 

@@ -291,6 +291,46 @@
       <arg name="result" type="a(tqyqbbbbaya(qybb)aay)" direction="out"/>
     </method>
 
+    <!-- GetMeshDiagChildTable: Get the mesh diagnostics childtable information.
+      @rloc16: Get the children for router with specified rloc16. If rloc16 is
+                not specified, it returns children for the current node.
+      @result: The list of child for router with specified RLoC16.
+      The prefix structure is:
+      <literallayout>
+        struct {
+          uint64_t     mExtAddress;          ///< Extended Address.
+          uint32_t     mTimeout;             ///< Timeout in seconds.
+          uint32_t     mAge;                 ///< Seconds since last heard from the child.
+          uint32_t     mConnectionTime;      ///< Seconds since child attach.
+          uint32_t     mCslTimeout;          ///< CSL Timeout in seconds.
+
+          uint16_t     mRloc16;              ///< RLOC16.
+          uint16_t     mVersion;             ///< Thread Version.
+          uint16_t     mSupervisionInterval; ///< Supervision interval in seconds. Zero to indicate not used.
+          uint16_t     mFrameErrorRate;      ///< Frame error rate (0x0000->0%, 0xffff->100%).
+          uint16_t     mMessageErrorRate;    ///< (IPv6) msg error rate (0x0000->0%, 0xffff->100%).
+          uint16_t     mQueuedMessageCount;  ///< Number of queued messages for indirect tx to child.
+          uint16_t     mCslPeriod;           ///< CSL Period in unit of 10-symbols-time. Zero indicates CSL is disabled.
+
+          uint8_t      mLinkMargin;          ///< Link Margin in.
+          uint8_t      mCslChannel;          ///< CSL channel.
+
+          int8_t       mAverageRssi;         ///< Average RSSI.
+          int8_t       mLastRssi;            ///< RSSI of last received frame.
+
+          bool         mRxOnWhenIdle;        ///< Is rx-on when idle (vs sleepy).
+          bool         mDeviceTypeFtd;       ///< Is device FTD (vs MTD).
+          bool         mFullNetData;         ///< Whether device gets full Network Data (vs stable sub-set).
+          bool         mCslSynchronized;     ///< Is CSL capable and CSL synchronized.
+          bool         mSupportsErrRate;     ///< `mFrameErrorRate` and `mMessageErrorRate` values are valid.
+        }
+      </literallayout>
+    -->
+    <method name="GetMeshDiagChildTable">
+      <arg name="rloc16" type="q" direction="in"/>
+      <arg name="result" type="a(tuuuuqqqqqqqnnyybbbbb)" direction="out"/>
+    </method>
+
     <!-- MeshLocalPrefix: The /64 mesh-local prefix.  -->
     <property name="MeshLocalPrefix" type="ay" access="readwrite">
       <annotation name="org.freedesktop.DBus.Property.EmitsChangedSignal" value="false"/>

@@ -717,6 +717,35 @@ struct MeshDiagRouterInfo
     std::vector<Ip6Address>        mIp6Address;         /// list of IPv6 addresses of the router.
 };
 
+struct MeshDiagChildEntry
+{
+    uint64_t mExtAddress;     ///< Extended Address.
+    uint32_t mTimeout;        ///< Timeout in seconds.
+    uint32_t mAge;            ///< Seconds since last heard from the child.
+    uint32_t mConnectionTime; ///< Seconds since child attach.
+    uint32_t mCslTimeout;     ///< CSL Timeout in seconds.
+
+    uint16_t mRloc16;              ///< RLOC16.
+    uint16_t mVersion;             ///< Thread Version.
+    uint16_t mSupervisionInterval; ///< Supervision interval in seconds. Zero to indicate not used.
+    uint16_t mFrameErrorRate;      ///< Frame error rate (0x0000->0%, 0xffff->100%).
+    uint16_t mMessageErrorRate;    ///< (IPv6) msg error rate (0x0000->0%, 0xffff->100%).
+    uint16_t mQueuedMessageCount;  ///< Number of queued messages for indirect tx to child.
+    uint16_t mCslPeriod;           ///< CSL Period in unit of 10-symbols-time. Zero indicates CSL is disabled.
+
+    int16_t mAverageRssi; ///< Average RSSI.
+    int16_t mLastRssi;    ///< RSSI of last received frame.
+
+    uint8_t mLinkMargin; ///< Link Margin in.
+    uint8_t mCslChannel; ///< CSL channel.
+
+    bool mRxOnWhenIdle;    ///< Is rx-on when idle (vs sleepy).
+    bool mDeviceTypeFtd;   ///< Is device FTD (vs MTD).
+    bool mFullNetData;     ///< Whether device gets full Network Data (vs stable sub-set).
+    bool mCslSynchronized; ///< Is CSL capable and CSL synchronized.
+    bool mSupportsErrRate; ///< `mFrameErrorRate` and `mMessageErrorRate` values are valid.
+};
+
 } // namespace DBus
 } // namespace otbr
 

@@ -250,6 +250,26 @@ exit:
     }
 }
 
+void ThreadHelper::GetMeshDiagChildTable(uint16_t rloc16, MeshDiagChildTableHandler aHandler)
+{
+    otError error = OT_ERROR_NONE;
+    VerifyOrExit(aHandler != nullptr, error = OT_ERROR_BUSY);
+    mMeshDiagChildTableHandler = aHandler;
+    mMeshDiagChildTableResults.clear();
+
+    error = otMeshDiagQueryChildTable(mInstance, rloc16, &ThreadHelper::MeshDiagChildTableCallback, this);
+
+exit:
+    if (error != OT_ERROR_NONE)
+    {
+        if (aHandler)
+        {
+            mMeshDiagChildTableHandler(error, {});
+        }
+        mMeshDiagChildTableHandler = nullptr;
+    }
+}
+
 void ThreadHelper::RandomFill(void *aBuf, size_t size)
 {
     std::uniform_int_distribution<> dist(0, UINT8_MAX);
@@ -344,6 +364,31 @@ void ThreadHelper::MeshDiagTopologyCallback(otError aError, otMeshDiagRouterInfo
         {
             mMeshDiagTopologyHandler = nullptr;
         }
+    }
+}
+
+void ThreadHelper::MeshDiagChildTableCallback(otError                     aError,
+                                              const otMeshDiagChildEntry *aChildEntry,
+                                              void                       *aThreadHelper)
+{
+    ThreadHelper *helper = static_cast<ThreadHelper *>(aThreadHelper);
+    helper->MeshDiagChildTableCallback(aError, aChildEntry);
+}
+
+void ThreadHelper::MeshDiagChildTableCallback(otError aError, const otMeshDiagChildEntry *aChildEntry)
+{
+    OT_UNUSED_VARIABLE(aError);
+
+    if (aChildEntry == nullptr)
+    {
+        if (mMeshDiagChildTableHandler != nullptr)
+        {
+            mMeshDiagChildTableHandler(OT_ERROR_NONE, mMeshDiagChildTableResults);
+        }
+    }
+    else
+    {
+        mMeshDiagChildTableResults.push_back(*aChildEntry);
     }
 }
 

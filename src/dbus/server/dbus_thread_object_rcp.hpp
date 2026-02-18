@@ -191,6 +191,8 @@ private:
 
     void MeshDiagTopologyHandler(DBusRequest &aRequest);
     void ReplyMeshDiagTopologyResult(DBusRequest &aRequest, otError aError, otMeshDiagRouterInfo *aResult);
+    void MeshDiagChildTableHandler(DBusRequest &aRequest);
+    void ReplyMeshDiagChildTableResult(DBusRequest &aRequest, otError aError, const std::vector<otMeshDiagChildEntry> &aResult);
 
     void ReplyScanResult(DBusRequest &aRequest, otError aError, const std::vector<otActiveScanResult> &aResult);
     void ReplyEnergyScanResult(DBusRequest &aRequest, otError aError, const std::vector<otEnergyScanResult> &aResult);
