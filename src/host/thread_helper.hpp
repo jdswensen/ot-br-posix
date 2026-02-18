@@ -50,6 +50,7 @@
 #include <openthread/joiner.h>
 #include <openthread/netdata.h>
 #include <openthread/thread.h>
+#include <openthread/mesh_diag.h>
 #include "mdns/mdns.hpp"
 
 namespace otbr {
@@ -73,6 +74,7 @@ public:
 #if OTBR_ENABLE_DHCP6_PD
     using Dhcp6PdStateCallback = std::function<void(otBorderRoutingDhcp6PdState)>;
 #endif
+    using MeshDiagTopologyHandler = std::function<void(otError, otMeshDiagRouterInfo *)>;
 
     /**
      * The constructor of a Thread helper.
@@ -129,6 +131,15 @@ public:
      * @param[in] aHandler       The scan result handler.
      */
     void EnergyScan(uint32_t aScanDuration, EnergyScanHandler aHandler);
+
+    /**
+     * This method performs a Thread Network Diagnostic Topology query.
+     *
+     * @param[in] args       mDiscoverChildTable, mDiscoverIp6Addresses
+     * @param[in] aHandler   The MeshDiag Topology result handler.
+     *
+     */
+    void GetMeshDiagTopology(std::vector<std::string> args, MeshDiagTopologyHandler aHandler);
 
     /**
      * This method attaches the device to the Thread network.
@@ -260,6 +271,9 @@ private:
     static void EnergyScanCallback(otEnergyScanResult *aResult, void *aThreadHelper);
     void        EnergyScanCallback(otEnergyScanResult *aResult);
 
+    static void MeshDiagTopologyCallback(otError aError, otMeshDiagRouterInfo *aRouterInfo, void *aThreadHelper);
+    void        MeshDiagTopologyCallback(otError aError, otMeshDiagRouterInfo *aRouterInfo);
+
     static void JoinerCallback(otError aError, void *aThreadHelper);
     void        JoinerCallback(otError aResult);
 
@@ -287,6 +301,8 @@ private:
     std::vector<otActiveScanResult> mScanResults;
     EnergyScanHandler               mEnergyScanHandler;
     std::vector<otEnergyScanResult> mEnergyScanResults;
+
+    MeshDiagTopologyHandler mMeshDiagTopologyHandler;
 
     std::vector<DeviceRoleHandler>    mDeviceRoleHandlers;
     std::vector<DatasetChangeHandler> mActiveDatasetChangeHandlers;

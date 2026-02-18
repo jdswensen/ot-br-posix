@@ -42,6 +42,7 @@
 #include <openthread/dataset_ftd.h>
 #include <openthread/jam_detection.h>
 #include <openthread/joiner.h>
+#include <openthread/mesh_diag.h>
 #include <openthread/thread_ftd.h>
 #include <openthread/platform/radio.h>
 
@@ -213,6 +214,41 @@ exit:
     }
 }
 
+void ThreadHelper::GetMeshDiagTopology(std::vector<std::string> args, MeshDiagTopologyHandler aHandler)
+{
+    otError                  error = OT_ERROR_NONE;
+    otMeshDiagDiscoverConfig config;
+    config.mDiscoverIp6Addresses = false;
+    config.mDiscoverChildTable   = false;
+
+    for (const std::string &arg : args)
+    {
+        if (arg == "children")
+        {
+            config.mDiscoverChildTable = true;
+        }
+        else if (arg == "ip6-addrs")
+        {
+            config.mDiscoverIp6Addresses = true;
+        }
+    }
+    const otMeshDiagDiscoverConfig *aConfig = &config;
+    VerifyOrExit(aHandler != nullptr, error = OT_ERROR_BUSY);
+    mMeshDiagTopologyHandler = aHandler;
+
+    error = otMeshDiagDiscoverTopology(mInstance, aConfig, &ThreadHelper::MeshDiagTopologyCallback, this);
+
+exit:
+    if (error != OT_ERROR_NONE)
+    {
+        if (aHandler)
+        {
+            mMeshDiagTopologyHandler(error, {});
+        }
+        mMeshDiagTopologyHandler = nullptr;
+    }
+}
+
 void ThreadHelper::RandomFill(void *aBuf, size_t size)
 {
     std::uniform_int_distribution<> dist(0, UINT8_MAX);
@@ -288,6 +324,20 @@ void ThreadHelper::EnergyScanCallback(otEnergyScanResult *aResult)
     else
     {
         mEnergyScanResults.push_back(*aResult);
+    }
+}
+
+void ThreadHelper::MeshDiagTopologyCallback(otError aError, otMeshDiagRouterInfo *aRouterInfo, void *aThreadHelper)
+{
+    ThreadHelper *helper = static_cast<ThreadHelper *>(aThreadHelper);
+    helper->MeshDiagTopologyCallback(aError, aRouterInfo);
+}
+
+void ThreadHelper::MeshDiagTopologyCallback(otError aError, otMeshDiagRouterInfo *aRouterInfo)
+{
+    if (mMeshDiagTopologyHandler != nullptr)
+    {
+        mMeshDiagTopologyHandler(aError, aRouterInfo);
     }
 }
 

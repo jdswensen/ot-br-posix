@@ -39,6 +39,7 @@
 #include <string>
 
 #include <openthread/link.h>
+#include <openthread/mesh_diag.h>
 
 #include "border_agent/border_agent.hpp"
 #include "dbus/server/dbus_object.hpp"
@@ -187,6 +188,9 @@ private:
     otError GetDnsUpstreamQueryState(DBusMessageIter &aIter);
     otError GetTelemetryDataHandler(DBusMessageIter &aIter);
     otError GetCapabilitiesHandler(DBusMessageIter &aIter);
+
+    void MeshDiagTopologyHandler(DBusRequest &aRequest);
+    void ReplyMeshDiagTopologyResult(DBusRequest &aRequest, otError aError, otMeshDiagRouterInfo *aResult);
 
     void ReplyScanResult(DBusRequest &aRequest, otError aError, const std::vector<otActiveScanResult> &aResult);
     void ReplyEnergyScanResult(DBusRequest &aRequest, otError aError, const std::vector<otEnergyScanResult> &aResult);

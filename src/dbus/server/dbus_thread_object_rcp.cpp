@@ -37,6 +37,7 @@
 #include <openthread/instance.h>
 #include <openthread/joiner.h>
 #include <openthread/link_raw.h>
+#include <openthread/mesh_diag.h>
 #include <openthread/nat64.h>
 #include <openthread/ncp.h>
 #include <openthread/netdata.h>
@@ -170,6 +171,9 @@ otbrError DBusThreadObjectRcp::Init(void)
     RegisterMethod(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_DEACTIVATE_EPHEMERAL_KEY_MODE_METHOD,
                    std::bind(&DBusThreadObjectRcp::DeactivateEphemeralKeyModeHandler, this, _1));
 #endif
+    RegisterMethod(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_GET_MESH_DIAG_TOPOLOGY_METHOD,
+                   std::bind(&DBusThreadObjectRcp::MeshDiagTopologyHandler, this, _1));
+
     RegisterMethod(DBUS_INTERFACE_INTROSPECTABLE, DBUS_INTROSPECT_METHOD,
                    std::bind(&DBusThreadObjectRcp::IntrospectHandler, this, _1));
 
@@ -419,6 +423,100 @@ void DBusThreadObjectRcp::ReplyEnergyScanResult(DBusRequest                     
         }
 
         aRequest.Reply(std::tie(results));
+    }
+}
+
+void DBusThreadObjectRcp::MeshDiagTopologyHandler(DBusRequest &aRequest)
+{
+    otError                  error        = OT_ERROR_NONE;
+    auto                     threadHelper = mHost.GetThreadHelper();
+    std::vector<std::string> configArgs;
+    auto                     args = std::tie(configArgs);
+
+    VerifyOrExit(DBusMessageToTuple(*aRequest.GetMessage(), args) == OTBR_ERROR_NONE, error = OT_ERROR_INVALID_ARGS);
+    for (const auto configArg : configArgs)
+    {
+        if (configArg != "children" && configArg != "ip6-addrs")
+        {
+            error = OT_ERROR_INVALID_ARGS;
+            goto exit;
+        }
+    }
+
+    threadHelper->GetMeshDiagTopology(
+        configArgs, std::bind(&DBusThreadObjectRcp::ReplyMeshDiagTopologyResult, this, aRequest, _1, _2));
+
+exit:
+    if (error != OT_ERROR_NONE)
+    {
+        aRequest.ReplyOtResult(error);
+    }
+}
+
+void DBusThreadObjectRcp::ReplyMeshDiagTopologyResult(DBusRequest &aRequest, otError aError, otMeshDiagRouterInfo *aResult)
+{
+    static std::vector<MeshDiagRouterInfo> results;
+    if (aError != OT_ERROR_PENDING && aError != OT_ERROR_RESPONSE_TIMEOUT && aError != OT_ERROR_NONE)
+    {
+        aRequest.ReplyOtResult(aError);
+        results.clear();
+        return;
+    }
+
+    if (aResult != nullptr)
+    {
+        MeshDiagRouterInfo result = {};
+
+        result.mExtAddress         = ConvertOpenThreadUint64(aResult->mExtAddress.m8);
+        result.mRloc16             = aResult->mRloc16;
+        result.mRouterId           = aResult->mRouterId;
+        result.mVersion            = aResult->mVersion;
+        result.mIsThisDevice       = aResult->mIsThisDevice;
+        result.mIsThisDeviceParent = aResult->mIsThisDeviceParent;
+        result.mIsLeader           = aResult->mIsLeader;
+        result.mIsBorderRouter     = aResult->mIsBorderRouter;
+
+        for (const auto &linkQuality : aResult->mLinkQualities)
+        {
+            result.mLinkQualities.emplace_back(linkQuality);
+        }
+
+        if (aResult->mChildIterator != nullptr)
+        {
+            otMeshDiagChildInfo childInfo;
+            while (otMeshDiagGetNextChildInfo(aResult->mChildIterator, &childInfo) == OT_ERROR_NONE)
+            {
+                MeshDiagChildInfo child = {};
+                child.mIsThisDevice     = childInfo.mIsThisDevice;
+                child.mIsBorderRouter   = childInfo.mIsBorderRouter;
+                child.mLinkQuality      = childInfo.mLinkQuality;
+                child.mRloc16           = childInfo.mRloc16;
+                result.mMeshDiagChildInfos.emplace_back(child);
+            }
+        }
+
+        if (aResult->mIp6AddrIterator != nullptr)
+        {
+            otIp6Address aIp6Address;
+            while (otMeshDiagGetNextIp6Address(aResult->mIp6AddrIterator, &aIp6Address) == OT_ERROR_NONE)
+            {
+                Ip6Address ip6Address;
+                for (uint8_t field = 0; field < OT_IP6_ADDRESS_SIZE; field++)
+                {
+                    ip6Address[field] = aIp6Address.mFields.m8[field];
+                }
+                result.mIp6Address.emplace_back(ip6Address);
+            }
+        }
+
+        results.emplace_back(result);
+    }
+
+    if (aError == OT_ERROR_NONE || aError == OT_ERROR_RESPONSE_TIMEOUT)
+    {
+        aRequest.Reply(std::tie(results));
+        results.clear();
+        return;
     }
 }
 
