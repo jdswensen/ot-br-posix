@@ -234,6 +234,7 @@ void ThreadHelper::GetMeshDiagTopology(std::vector<std::string> args, MeshDiagTo
     }
     const otMeshDiagDiscoverConfig *aConfig = &config;
     VerifyOrExit(aHandler != nullptr, error = OT_ERROR_BUSY);
+    VerifyOrExit(mMeshDiagTopologyHandler == nullptr, error = OT_ERROR_BUSY);
     mMeshDiagTopologyHandler = aHandler;
 
     error = otMeshDiagDiscoverTopology(mInstance, aConfig, &ThreadHelper::MeshDiagTopologyCallback, this);
@@ -338,6 +339,11 @@ void ThreadHelper::MeshDiagTopologyCallback(otError aError, otMeshDiagRouterInfo
     if (mMeshDiagTopologyHandler != nullptr)
     {
         mMeshDiagTopologyHandler(aError, aRouterInfo);
+
+        if (aError == OT_ERROR_NONE || aError == OT_ERROR_RESPONSE_TIMEOUT)
+        {
+            mMeshDiagTopologyHandler = nullptr;
+        }
     }
 }
 

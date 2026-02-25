@@ -202,6 +202,8 @@ private:
     std::unordered_map<std::string, PropertyHandlerType> mGetPropertyHandlers;
     otbr::Mdns::Publisher                               *mPublisher;
 
+    std::vector<MeshDiagRouterInfo> mMeshDiagResults;
+
 #if OTBR_ENABLE_BORDER_AGENT
     otbr::BorderAgent &mBorderAgent;
 #endif

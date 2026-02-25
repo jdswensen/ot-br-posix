@@ -455,11 +455,10 @@ exit:
 
 void DBusThreadObjectRcp::ReplyMeshDiagTopologyResult(DBusRequest &aRequest, otError aError, otMeshDiagRouterInfo *aResult)
 {
-    static std::vector<MeshDiagRouterInfo> results;
     if (aError != OT_ERROR_PENDING && aError != OT_ERROR_RESPONSE_TIMEOUT && aError != OT_ERROR_NONE)
     {
         aRequest.ReplyOtResult(aError);
-        results.clear();
+        mMeshDiagResults.clear();
         return;
     }
 
@@ -509,13 +508,13 @@ void DBusThreadObjectRcp::ReplyMeshDiagTopologyResult(DBusRequest &aRequest, otE
             }
         }
 
-        results.emplace_back(result);
+        mMeshDiagResults.emplace_back(result);
     }
 
     if (aError == OT_ERROR_NONE || aError == OT_ERROR_RESPONSE_TIMEOUT)
     {
-        aRequest.Reply(std::tie(results));
-        results.clear();
+        aRequest.Reply(std::tie(mMeshDiagResults));
+        mMeshDiagResults.clear();
         return;
     }
 }
