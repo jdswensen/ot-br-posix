@@ -36,7 +36,11 @@
 
 #include "openthread-br/config.h"
 
+#include <array>
+#include <map>
+#include <memory>
 #include <string>
+#include <unordered_map>
 
 #include <openthread/link.h>
 
@@ -105,6 +109,7 @@ private:
 #endif
     void SetThreadEnabledHandler(DBusRequest &aRequest);
     void JoinHandler(DBusRequest &aRequest);
+    void GetNetworkDiagnosticTlvsHandler(DBusRequest &aRequest);
     void GetPropertiesHandler(DBusRequest &aRequest);
     void LeaveNetworkHandler(DBusRequest &aRequest);
     void SetNat64Enabled(DBusRequest &aRequest);
@@ -190,6 +195,15 @@ private:
 
     void ReplyScanResult(DBusRequest &aRequest, otError aError, const std::vector<otActiveScanResult> &aResult);
     void ReplyEnergyScanResult(DBusRequest &aRequest, otError aError, const std::vector<otEnergyScanResult> &aResult);
+    static void HandleDiagnosticGetResponse(otError              aError,
+                                            otMessage           *aMessage,
+                                            const otMessageInfo *aMessageInfo,
+                                            void                *aContext);
+    void HandleDiagnosticGetResponse(otError aError, const otMessage *aMessage, const otMessageInfo *aMessageInfo);
+    void CompleteNetworkDiagnosticRequest(uint64_t aGeneration);
+    void AbortNetworkDiagnosticRequest(void);
+
+    void Deinit(void) override;
 
     otbr::Host::RcpHost &mHost;
 #if OTBR_ENABLE_TELEMETRY_DATA_API
@@ -198,9 +212,32 @@ private:
     std::unordered_map<std::string, PropertyHandlerType> mGetPropertyHandlers;
     otbr::Mdns::Publisher                               *mPublisher;
 
+    // Tracks an in-flight GetNetworkDiagnosticTlvs request.
+    // Only one request is allowed at a time (single-flight); concurrent callers
+    // receive OT_ERROR_BUSY. Responses are keyed by peer address (std::map),
+    // so the output is ordered by peer IPv6 address, not by arrival time.
+    // For peers that split their answer across multiple CoAP messages (FTD peers
+    // with large diagnostic data), the raw payloads are concatenated.
+    struct NetworkDiagnosticRequest
+    {
+        bool     mIsActive   = false;
+        uint64_t mGeneration = 0;
+        otError  mError      = OT_ERROR_NONE;
+
+        std::unique_ptr<DBusRequest>                   mRequest;
+        std::map<Ip6Address, NetworkDiagnosticMessage> mResponses;
+    };
+
 #if OTBR_ENABLE_BORDER_AGENT
     otbr::BorderAgent &mBorderAgent;
 #endif
+
+    NetworkDiagnosticRequest mNetworkDiagnosticRequest;
+
+    // Shared sentinel for timer-task safety: timer lambdas capture a weak_ptr
+    // to this sentinel. If the weak_ptr is expired when the lambda fires, the
+    // DBusThreadObjectRcp has been destroyed and the lambda must not access `this`.
+    std::shared_ptr<bool> mAlive;
 };
 
 /**

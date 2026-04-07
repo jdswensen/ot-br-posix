@@ -723,6 +723,41 @@ ClientError ThreadApiDBus::GetCapabilities(std::vector<uint8_t> &aCapabilities)
     return GetProperty(OTBR_DBUS_PROPERTY_CAPABILITIES, aCapabilities);
 }
 
+ClientError ThreadApiDBus::GetNetworkDiagnosticTlvs(const Ip6Address                      &aDestination,
+                                                    const std::vector<uint8_t>           &aTlvTypes,
+                                                    std::vector<NetworkDiagnosticMessage> &aResponses,
+                                                    uint32_t                              aTimeoutMs)
+{
+    static constexpr uint32_t kDbusTimeoutMarginMs = 2000;
+
+    ClientError             ret = ClientError::ERROR_NONE;
+    DBus::UniqueDBusMessage message(dbus_message_new_method_call((OTBR_DBUS_SERVER_PREFIX + mInterfaceName).c_str(),
+                                                                 (OTBR_DBUS_OBJECT_PREFIX + mInterfaceName).c_str(),
+                                                                 OTBR_DBUS_THREAD_INTERFACE,
+                                                                 OTBR_DBUS_GET_NETWORK_DIAGNOSTIC_TLVS_METHOD));
+    DBus::UniqueDBusMessage reply = nullptr;
+    DBusError               error;
+    DBusMessageIter         iter;
+    auto                    args          = std::tie(aDestination, aTlvTypes, aTimeoutMs);
+    int                     dbusTimeoutMs = static_cast<int>(aTimeoutMs) + kDbusTimeoutMarginMs;
+
+    dbus_error_init(&error);
+    VerifyOrExit(message != nullptr, ret = ClientError::ERROR_DBUS);
+    VerifyOrExit(DBus::TupleToDBusMessage(*message, args) == OTBR_ERROR_NONE, ret = ClientError::ERROR_DBUS);
+    reply = DBus::UniqueDBusMessage(
+        dbus_connection_send_with_reply_and_block(mConnection, message.get(), dbusTimeoutMs, &error));
+    VerifyOrExit(!dbus_error_is_set(&error), ret = DBus::ConvertFromDBusErrorName(error.message));
+    VerifyOrExit(reply != nullptr, ret = ClientError::ERROR_DBUS);
+    ret = DBus::CheckErrorMessage(reply.get());
+    SuccessOrExit(ret);
+    VerifyOrExit(dbus_message_iter_init(reply.get(), &iter), ret = ClientError::ERROR_DBUS);
+    VerifyOrExit(DBus::DBusMessageExtract(&iter, aResponses) == OTBR_ERROR_NONE, ret = ClientError::ERROR_DBUS);
+
+exit:
+    dbus_error_free(&error);
+    return ret;
+}
+
 std::string ThreadApiDBus::GetInterfaceName(void)
 {
     return mInterfaceName;

@@ -875,6 +875,29 @@ public:
     ClientError GetTelemetryData(std::vector<uint8_t> &aTelemetryData);
 
     /**
+     * This method sends a network diagnostic get request and returns the raw payloads received from peers.
+     *
+     * Only one request may be in-flight at a time; concurrent calls return OT_ERROR_BUSY.
+     * Responses are ordered by peer IPv6 address. For peers that split their answer across
+     * multiple CoAP messages (FTD peers with large diagnostic data), the raw payloads are
+     * concatenated, so the caller receives every TLV the peer sent.
+     *
+     * @param[in] aDestination  The IPv6 destination of the diagnostic request.
+     * @param[in] aTlvTypes     The diagnostic TLV type IDs to request.
+     * @param[out] aResponses   The concatenated diagnostic payloads received from each responding peer.
+     * @param[in] aTimeoutMs    The time to collect responses before replying, in milliseconds.
+     *                          The D-Bus transport timeout is set to aTimeoutMs plus a margin.
+     *
+     * @retval ERROR_NONE  Successfully performed the dbus function call
+     * @retval ERROR_DBUS  dbus encode/decode error
+     * @retval ...         OpenThread defined error value otherwise
+     */
+    ClientError GetNetworkDiagnosticTlvs(const Ip6Address                      &aDestination,
+                                         const std::vector<uint8_t>            &aTlvTypes,
+                                         std::vector<NetworkDiagnosticMessage> &aResponses,
+                                         uint32_t                               aTimeoutMs = 5000);
+
+    /**
      * This method gets the capabilities data proto serialized byte data.
      *
      * @param[out] aCapabilities The capabilities proto serialized byte data

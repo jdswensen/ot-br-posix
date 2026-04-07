@@ -64,12 +64,15 @@ bool operator==(const TestStruct &aLhs, const TestStruct &aRhs)
     return aLhs.tag == aRhs.tag && aLhs.val == aRhs.val && aLhs.name == aRhs.name;
 }
 
-bool operator==(const otbr::DBus::ChannelQuality &aLhs, const otbr::DBus::ChannelQuality &aRhs)
+namespace otbr {
+namespace DBus {
+
+bool operator==(const ChannelQuality &aLhs, const ChannelQuality &aRhs)
 {
     return aLhs.mChannel == aRhs.mChannel && aLhs.mOccupancy == aRhs.mOccupancy;
 }
 
-bool operator==(const otbr::DBus::ChildInfo &aLhs, const otbr::DBus::ChildInfo &aRhs)
+bool operator==(const ChildInfo &aLhs, const ChildInfo &aRhs)
 {
     return aLhs.mExtAddress == aRhs.mExtAddress && aLhs.mTimeout == aRhs.mTimeout && aLhs.mAge == aRhs.mAge &&
            aLhs.mRloc16 == aRhs.mRloc16 && aLhs.mChildId == aRhs.mChildId &&
@@ -80,7 +83,7 @@ bool operator==(const otbr::DBus::ChildInfo &aLhs, const otbr::DBus::ChildInfo &
            aLhs.mFullNetworkData == aRhs.mFullNetworkData && aLhs.mIsStateRestoring == aRhs.mIsStateRestoring;
 }
 
-bool operator==(const otbr::DBus::NeighborInfo &aLhs, const otbr::DBus::NeighborInfo &aRhs)
+bool operator==(const NeighborInfo &aLhs, const NeighborInfo &aRhs)
 {
     return aLhs.mExtAddress == aRhs.mExtAddress && aLhs.mAge == aRhs.mAge && aLhs.mRloc16 == aRhs.mRloc16 &&
            aLhs.mLinkFrameCounter == aRhs.mLinkFrameCounter && aLhs.mMleFrameCounter == aRhs.mMleFrameCounter &&
@@ -91,14 +94,14 @@ bool operator==(const otbr::DBus::NeighborInfo &aLhs, const otbr::DBus::Neighbor
            aLhs.mIsChild == aRhs.mIsChild;
 }
 
-bool operator==(const otbr::DBus::LeaderData &aLhs, const otbr::DBus::LeaderData &aRhs)
+bool operator==(const LeaderData &aLhs, const LeaderData &aRhs)
 {
     return aLhs.mPartitionId == aRhs.mPartitionId && aLhs.mWeighting == aRhs.mWeighting &&
            aLhs.mDataVersion == aRhs.mDataVersion && aLhs.mStableDataVersion == aRhs.mStableDataVersion &&
            aLhs.mLeaderRouterId == aRhs.mLeaderRouterId;
 }
 
-bool operator==(const otbr::DBus::ActiveScanResult &aLhs, const otbr::DBus::ActiveScanResult &aRhs)
+bool operator==(const ActiveScanResult &aLhs, const ActiveScanResult &aRhs)
 {
     return aLhs.mExtAddress == aRhs.mExtAddress && aLhs.mNetworkName == aRhs.mNetworkName &&
            aLhs.mExtendedPanId == aRhs.mExtendedPanId && aLhs.mSteeringData == aRhs.mSteeringData &&
@@ -107,7 +110,7 @@ bool operator==(const otbr::DBus::ActiveScanResult &aLhs, const otbr::DBus::Acti
            aLhs.mIsNative == aRhs.mIsNative;
 }
 
-bool operator==(const otbr::DBus::Ip6Prefix &aLhs, const otbr::DBus::Ip6Prefix &aRhs)
+bool operator==(const Ip6Prefix &aLhs, const Ip6Prefix &aRhs)
 {
     bool prefixDataEquality = (aLhs.mPrefix.size() == aRhs.mPrefix.size()) &&
                               (memcmp(&aLhs.mPrefix[0], &aRhs.mPrefix[0], aLhs.mPrefix.size()) == 0);
@@ -115,11 +118,19 @@ bool operator==(const otbr::DBus::Ip6Prefix &aLhs, const otbr::DBus::Ip6Prefix &
     return prefixDataEquality && aLhs.mLength == aRhs.mLength;
 }
 
-bool operator==(const otbr::DBus::ExternalRoute &aLhs, const otbr::DBus::ExternalRoute &aRhs)
+bool operator==(const ExternalRoute &aLhs, const ExternalRoute &aRhs)
 {
     return aLhs.mPrefix == aRhs.mPrefix && aLhs.mRloc16 == aRhs.mRloc16 && aLhs.mPreference == aRhs.mPreference &&
            aLhs.mStable == aRhs.mStable && aLhs.mNextHopIsThisDevice == aRhs.mNextHopIsThisDevice;
 }
+
+bool operator==(const NetworkDiagnosticMessage &aLhs, const NetworkDiagnosticMessage &aRhs)
+{
+    return aLhs.mPeerAddress == aRhs.mPeerAddress && aLhs.mPayload == aRhs.mPayload;
+}
+
+} // namespace DBus
+} // namespace otbr
 
 inline otbrError DBusMessageEncode(DBusMessageIter *aIter, const TestStruct &aValue)
 {
@@ -155,7 +166,6 @@ exit:
     return error;
 }
 
-TEST_GROUP(DBusMessage){};
 
 TEST(DBusMessage, TestVectorMessage)
 {
@@ -258,6 +268,23 @@ TEST(DBusMessage, TestOtbrChildInfo)
     EXPECT_EQ(DBusMessageToTuple(*msg, getVals), OTBR_ERROR_NONE);
 
     EXPECT_EQ(std::get<0>(setVals)[0], std::get<0>(getVals)[0]);
+
+    dbus_message_unref(msg);
+}
+
+TEST(DBusMessage, TestNetworkDiagnosticMessage)
+{
+    DBusMessage                                          *msg = dbus_message_new(DBUS_MESSAGE_TYPE_METHOD_RETURN);
+    tuple<std::vector<otbr::DBus::NetworkDiagnosticMessage>> setVals(
+        {{{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, {0x01, 0x02, 0x03}},
+         {{0xfd, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2}, {0xaa, 0xbb}}});
+    tuple<std::vector<otbr::DBus::NetworkDiagnosticMessage>> getVals;
+
+    EXPECT_NE(msg, nullptr);
+
+    EXPECT_EQ(TupleToDBusMessage(*msg, setVals), OTBR_ERROR_NONE);
+    EXPECT_EQ(DBusMessageToTuple(*msg, getVals), OTBR_ERROR_NONE);
+    EXPECT_EQ(setVals, getVals);
 
     dbus_message_unref(msg);
 }

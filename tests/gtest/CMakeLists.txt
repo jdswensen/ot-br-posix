@@ -165,3 +165,14 @@ if(OTBR_TELEMETRY_DATA_API)
     )
     gtest_discover_tests(otbr-gtest-telemetry)
 endif()
+
+if(OTBR_DBUS)
+    add_executable(otbr-gtest-dbus-message
+        test_dbus_message.cpp
+    )
+    target_link_libraries(otbr-gtest-dbus-message
+        otbr-dbus-common
+        GTest::gmock_main
+    )
+    gtest_discover_tests(otbr-gtest-dbus-message)
+endif()

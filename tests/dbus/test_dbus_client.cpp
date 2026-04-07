@@ -50,8 +50,10 @@ using otbr::DBus::ClientError;
 using otbr::DBus::DeviceRole;
 using otbr::DBus::EnergyScanResult;
 using otbr::DBus::ExternalRoute;
+using otbr::DBus::Ip6Address;
 using otbr::DBus::Ip6Prefix;
 using otbr::DBus::LinkModeConfig;
+using otbr::DBus::NetworkDiagnosticMessage;
 using otbr::DBus::OnMeshPrefix;
 using otbr::DBus::SrpServerInfo;
 using otbr::DBus::ThreadApiDBus;
@@ -415,6 +417,23 @@ void CheckCapabilities(ThreadApiDBus *aApi)
     TEST_ASSERT(capabilities.nat64() == OTBR_ENABLE_NAT64);
 }
 
+void CheckNetworkDiagnosticTlvs(ThreadApiDBus *aApi)
+{
+    Ip6Address                            destination = {0xff, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                                         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02};
+    std::vector<uint8_t>                  tlvTypes    = {0, 1};
+    std::vector<NetworkDiagnosticMessage> responses;
+
+    TEST_ASSERT(aApi->GetNetworkDiagnosticTlvs(destination, tlvTypes, responses) == OTBR_ERROR_NONE);
+    TEST_ASSERT(!responses.empty());
+
+    for (const auto &response : responses)
+    {
+        TEST_ASSERT(!response.mPayload.empty());
+        TEST_ASSERT(response.mPeerAddress != Ip6Address{});
+    }
+}
+
 int main()
 {
     DBusError                      error;
@@ -531,6 +550,7 @@ int main()
                             CheckNat64(api.get());
                             CheckEphemeralKey(api.get());
                             CheckBorderAgent(api.get());
+                            CheckNetworkDiagnosticTlvs(api.get());
 #if OTBR_ENABLE_TELEMETRY_DATA_API
                             CheckTelemetryData(api.get());
 #endif

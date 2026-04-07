@@ -119,6 +119,8 @@ otbrError DBusMessageEncode(DBusMessageIter *aIter, const TrelInfo &aTrelInfo);
 otbrError DBusMessageExtract(DBusMessageIter *aIter, TrelInfo &aTrelInfo);
 otbrError DBusMessageEncode(DBusMessageIter *aIter, const TrelInfo::TrelPacketCounters &aCounters);
 otbrError DBusMessageExtract(DBusMessageIter *aIter, TrelInfo::TrelPacketCounters &aCounters);
+otbrError DBusMessageEncode(DBusMessageIter *aIter, const NetworkDiagnosticMessage &aMessage);
+otbrError DBusMessageExtract(DBusMessageIter *aIter, NetworkDiagnosticMessage &aMessage);
 
 template <typename T> struct DBusTypeTrait;
 
@@ -405,6 +407,18 @@ template <> struct DBusTypeTrait<InfraLinkInfo>
 {
     // struct of { string, bool, bool, bool, uint32, uint32, uint32 }
     static constexpr const char *TYPE_AS_STRING = "(sbbbuuu)";
+};
+
+template <> struct DBusTypeTrait<NetworkDiagnosticMessage>
+{
+    // struct of { array<uint8>, array<uint8> }
+    static constexpr const char *TYPE_AS_STRING = "(ayay)";
+};
+
+template <> struct DBusTypeTrait<std::vector<NetworkDiagnosticMessage>>
+{
+    // array of struct of { array<uint8>, array<uint8> }
+    static constexpr const char *TYPE_AS_STRING = "a(ayay)";
 };
 
 template <> struct DBusTypeTrait<int8_t>

@@ -27,6 +27,7 @@
  */
 
 #include <assert.h>
+#include <algorithm>
 #include <net/if.h>
 #include <string.h>
 
@@ -40,6 +41,7 @@
 #include <openthread/nat64.h>
 #include <openthread/ncp.h>
 #include <openthread/netdata.h>
+#include <openthread/netdiag.h>
 #include <openthread/openthread-system.h>
 #include <openthread/srp_server.h>
 #include <openthread/thread_ftd.h>
@@ -49,6 +51,7 @@
 #include "common/api_strings.hpp"
 #include "common/byteswap.hpp"
 #include "common/code_utils.hpp"
+#include "common/time.hpp"
 #include "dbus/common/constants.hpp"
 #include "dbus/server/dbus_agent.hpp"
 #include "dbus/server/dbus_thread_object_rcp.hpp"
@@ -111,6 +114,8 @@ otbrError DBusThreadObjectRcp::Init(void)
     otbrError error        = OTBR_ERROR_NONE;
     auto      threadHelper = mHost.GetThreadHelper();
 
+    mAlive = std::make_shared<bool>(true);
+
     SuccessOrExit(error = DBusObject::Initialize(false));
 
     threadHelper->AddDeviceRoleHandler(std::bind(&DBusThreadObjectRcp::DeviceRoleHandler, this, _1));
@@ -164,6 +169,8 @@ otbrError DBusThreadObjectRcp::Init(void)
                    std::bind(&DBusThreadObjectRcp::LeaveNetworkHandler, this, _1));
     RegisterMethod(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_SET_NAT64_ENABLED_METHOD,
                    std::bind(&DBusThreadObjectRcp::SetNat64Enabled, this, _1));
+    RegisterMethod(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_GET_NETWORK_DIAGNOSTIC_TLVS_METHOD,
+                   std::bind(&DBusThreadObjectRcp::GetNetworkDiagnosticTlvsHandler, this, _1));
 #if OTBR_ENABLE_EPSKC
     RegisterMethod(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_ACTIVATE_EPHEMERAL_KEY_MODE_METHOD,
                    std::bind(&DBusThreadObjectRcp::ActivateEphemeralKeyModeHandler, this, _1));
@@ -335,11 +342,37 @@ void DBusThreadObjectRcp::Dhcp6PdStateHandler(otBorderRoutingDhcp6PdState aDhcp6
 
 void DBusThreadObjectRcp::NcpResetHandler(void)
 {
+    AbortNetworkDiagnosticRequest();
+
     mHost.GetThreadHelper()->AddDeviceRoleHandler(std::bind(&DBusThreadObjectRcp::DeviceRoleHandler, this, _1));
     mHost.GetThreadHelper()->AddActiveDatasetChangeHandler(
         std::bind(&DBusThreadObjectRcp::ActiveDatasetChangeHandler, this, _1));
     SignalPropertyChanged(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_PROPERTY_DEVICE_ROLE,
-                          GetDeviceRoleName(OT_DEVICE_ROLE_DISABLED));
+                           GetDeviceRoleName(OT_DEVICE_ROLE_DISABLED));
+}
+
+void DBusThreadObjectRcp::AbortNetworkDiagnosticRequest(void)
+{
+    if (mNetworkDiagnosticRequest.mIsActive)
+    {
+        mNetworkDiagnosticRequest.mRequest->ReplyOtResult(OT_ERROR_ABORT);
+        mNetworkDiagnosticRequest.mRequest.reset();
+        mNetworkDiagnosticRequest.mResponses.clear();
+        mNetworkDiagnosticRequest.mIsActive = false;
+        mNetworkDiagnosticRequest.mError    = OT_ERROR_NONE;
+        mNetworkDiagnosticRequest.mGeneration++;
+    }
+}
+
+void DBusThreadObjectRcp::Deinit(void)
+{
+    AbortNetworkDiagnosticRequest();
+
+    // Invalidate the sentinel so any outstanding timer lambdas (which captured
+    // a weak_ptr to mAlive) will see an expired pointer and skip the callback.
+    mAlive.reset();
+
+    DBusObject::Deinit();
 }
 
 void DBusThreadObjectRcp::ScanHandler(DBusRequest &aRequest)
@@ -455,6 +488,142 @@ void DBusThreadObjectRcp::AttachHandler(DBusRequest &aRequest)
                                  aRequest.ReplyOtResult(aError);
                              });
     }
+}
+
+void DBusThreadObjectRcp::GetNetworkDiagnosticTlvsHandler(DBusRequest &aRequest)
+{
+    otError              error = OT_ERROR_NONE;
+    Ip6Address           destination;
+    std::vector<uint8_t> tlvTypes;
+    uint32_t             timeoutMs;
+    otIp6Address         otDestination;
+    auto                 args = std::tie(destination, tlvTypes, timeoutMs);
+    uint64_t             generation;
+
+    VerifyOrExit(!mNetworkDiagnosticRequest.mIsActive, error = OT_ERROR_BUSY);
+    SuccessOrExit(DBusMessageToTuple(*aRequest.GetMessage(), args), error = OT_ERROR_INVALID_ARGS);
+    VerifyOrExit(!tlvTypes.empty(), error = OT_ERROR_INVALID_ARGS);
+    VerifyOrExit(timeoutMs > 0, error = OT_ERROR_INVALID_ARGS);
+
+    memcpy(otDestination.mFields.m8, destination.data(), destination.size());
+
+    mNetworkDiagnosticRequest.mIsActive = true;
+    mNetworkDiagnosticRequest.mGeneration++;
+    generation = mNetworkDiagnosticRequest.mGeneration;
+    mNetworkDiagnosticRequest.mRequest.reset(new DBusRequest(aRequest));
+    mNetworkDiagnosticRequest.mResponses.clear();
+    mNetworkDiagnosticRequest.mError = OT_ERROR_NONE;
+
+    SuccessOrExit(error = otThreadSendDiagnosticGet(mHost.GetInstance(), &otDestination, tlvTypes.data(), tlvTypes.size(),
+                                                    &DBusThreadObjectRcp::HandleDiagnosticGetResponse, this));
+
+    {
+        std::weak_ptr<bool> weak = mAlive;
+
+        mHost.PostTimerTask(Milliseconds(timeoutMs), [this, generation, weak]() {
+            if (weak.expired())
+            {
+                return;
+            }
+            CompleteNetworkDiagnosticRequest(generation);
+        });
+    }
+
+exit:
+    if (error != OT_ERROR_NONE)
+    {
+        mNetworkDiagnosticRequest.mRequest.reset();
+        mNetworkDiagnosticRequest.mResponses.clear();
+        mNetworkDiagnosticRequest.mIsActive = false;
+        mNetworkDiagnosticRequest.mError    = OT_ERROR_NONE;
+        mNetworkDiagnosticRequest.mGeneration++;
+        aRequest.ReplyOtResult(error);
+    }
+}
+
+void DBusThreadObjectRcp::HandleDiagnosticGetResponse(otError              aError,
+                                                      otMessage           *aMessage,
+                                                      const otMessageInfo *aMessageInfo,
+                                                      void                *aContext)
+{
+    static_cast<DBusThreadObjectRcp *>(aContext)->HandleDiagnosticGetResponse(aError, aMessage, aMessageInfo);
+}
+
+void DBusThreadObjectRcp::HandleDiagnosticGetResponse(otError aError, const otMessage *aMessage, const otMessageInfo *aMessageInfo)
+{
+    VerifyOrExit(mNetworkDiagnosticRequest.mIsActive);
+
+    if (aError != OT_ERROR_NONE)
+    {
+        // Record the first error encountered (e.g. unicast timeout/failure).
+        if (mNetworkDiagnosticRequest.mError == OT_ERROR_NONE)
+        {
+            mNetworkDiagnosticRequest.mError = aError;
+        }
+        ExitNow();
+    }
+
+    VerifyOrExit(aMessage != nullptr && aMessageInfo != nullptr);
+
+    {
+        Ip6Address peerAddress;
+        uint16_t   offset    = otMessageGetOffset(aMessage);
+        uint16_t   length    = otMessageGetLength(aMessage);
+        uint16_t   payloadSz = length - offset;
+
+        VerifyOrExit(length >= offset);
+
+        memcpy(peerAddress.data(), aMessageInfo->mPeerAddr.mFields.m8, peerAddress.size());
+
+        // Look up or insert an entry for this peer.  For multi-part answers
+        // (FTD peers with large diagnostic data) the callback fires once per
+        // part; we concatenate the raw CoAP payloads so the caller receives
+        // every TLV the peer sent.
+        auto &entry = mNetworkDiagnosticRequest.mResponses[peerAddress];
+        entry.mPeerAddress = peerAddress;
+
+        if (payloadSz > 0)
+        {
+            size_t prevSize = entry.mPayload.size();
+            entry.mPayload.resize(prevSize + payloadSz);
+            VerifyOrExit(otMessageRead(aMessage, offset, entry.mPayload.data() + prevSize, payloadSz) == payloadSz);
+        }
+    }
+
+exit:
+    return;
+}
+
+void DBusThreadObjectRcp::CompleteNetworkDiagnosticRequest(uint64_t aGeneration)
+{
+    std::vector<NetworkDiagnosticMessage> responses;
+
+    VerifyOrExit(mNetworkDiagnosticRequest.mIsActive && mNetworkDiagnosticRequest.mRequest != nullptr);
+    VerifyOrExit(mNetworkDiagnosticRequest.mGeneration == aGeneration);
+
+    if (mNetworkDiagnosticRequest.mError != OT_ERROR_NONE)
+    {
+        mNetworkDiagnosticRequest.mRequest->ReplyOtResult(mNetworkDiagnosticRequest.mError);
+    }
+    else
+    {
+        responses.reserve(mNetworkDiagnosticRequest.mResponses.size());
+        for (const auto &entry : mNetworkDiagnosticRequest.mResponses)
+        {
+            responses.emplace_back(entry.second);
+        }
+
+        mNetworkDiagnosticRequest.mRequest->Reply(std::tie(responses));
+    }
+
+    mNetworkDiagnosticRequest.mRequest.reset();
+    mNetworkDiagnosticRequest.mResponses.clear();
+    mNetworkDiagnosticRequest.mIsActive = false;
+    mNetworkDiagnosticRequest.mError    = OT_ERROR_NONE;
+    mNetworkDiagnosticRequest.mGeneration++;
+
+exit:
+    return;
 }
 
 void DBusThreadObjectRcp::AttachAllNodesToHandler(DBusRequest &aRequest)
