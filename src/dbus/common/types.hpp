@@ -533,6 +533,59 @@ struct DnsQueryConfig
     uint8_t mTransportProto;
 };
 
+struct DnsServiceInfo
+{
+    /**
+     * The service record TTL (in seconds).
+     */
+    uint32_t mTtl;
+
+    /**
+     * The service port number.
+     */
+    uint16_t mPort;
+
+    /**
+     * The service priority.
+     */
+    uint16_t mPriority;
+
+    /**
+     * The service weight.
+     */
+    uint16_t mWeight;
+
+    /**
+     * The service host name.
+     */
+    std::string mHostName;
+
+    /**
+     * The host IPv6 address (16 bytes). All zeros if not available.
+     */
+    std::vector<uint8_t> mHostAddress;
+
+    /**
+     * The host address TTL (in seconds).
+     */
+    uint32_t mHostAddressTtl;
+
+    /**
+     * The TXT record data.
+     */
+    std::vector<uint8_t> mTxtData;
+
+    /**
+     * Whether the TXT record data was truncated.
+     */
+    bool mTxtDataTruncated;
+
+    /**
+     * The TXT record data TTL (in seconds).
+     */
+    uint32_t mTxtDataTtl;
+};
+
 enum SrpServerState : uint8_t
 {
     OTBR_SRP_SERVER_STATE_DISABLED = 0, ///< The SRP server is disabled.

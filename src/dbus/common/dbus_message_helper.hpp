@@ -81,6 +81,8 @@ otbrError DBusMessageEncode(DBusMessageIter *aIter, const TxtEntry &aTxtEntry);
 otbrError DBusMessageExtract(DBusMessageIter *aIter, TxtEntry &aTxtEntry);
 otbrError DBusMessageEncode(DBusMessageIter *aIter, const DnsQueryConfig &aConfig);
 otbrError DBusMessageExtract(DBusMessageIter *aIter, DnsQueryConfig &aConfig);
+otbrError DBusMessageEncode(DBusMessageIter *aIter, const DnsServiceInfo &aInfo);
+otbrError DBusMessageExtract(DBusMessageIter *aIter, DnsServiceInfo &aInfo);
 otbrError DBusMessageEncode(DBusMessageIter *aIter, const SrpServerInfo::Registration &aRegistration);
 otbrError DBusMessageExtract(DBusMessageIter *aIter, SrpServerInfo::Registration &aRegistration);
 otbrError DBusMessageEncode(DBusMessageIter *aIter, const SrpServerInfo::ResponseCounters &aResponseCounters);

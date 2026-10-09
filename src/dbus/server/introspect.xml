@@ -999,6 +999,44 @@
       <annotation name="org.freedesktop.DBus.Property.EmitsChangedSignal" value="false"/>
     </property>
 
+    <!-- DnsResolveService: Resolve a DNS service instance. The reply arrives
+      when the DNS response is received or the query times out. The host
+      address in the reply is all zeros when it was not provided in the
+      response; in that case the host name can be resolved separately. Only
+      available when built with OTBR_DNS_CLIENT.
+      @instance_label: The service instance label (e.g. "my-printer").
+      @service_name: The full service name (e.g. "_ipps._tcp.default.service.arpa.").
+      @config: Per-query config override, in the same format as the
+        DnsQueryConfig property. A zero value in any field (and an empty
+        server address) means "unspecified" and inherits that field from the
+        default query config, so an all-zero struct uses the default config
+        unchanged. Note the worst-case query time is
+        response_timeout x max_tx_attempts; the caller must use a D-Bus call
+        timeout larger than that or the call fails client-side before the
+        DNS query completes.
+      @info: The resolved service info.
+      <literallayout>
+      struct {
+        uint32 ttl                  The service record TTL in seconds.
+        uint16 port                 The service port number.
+        uint16 priority             The service priority.
+        uint16 weight               The service weight.
+        string host_name            The service host name.
+        array<uint8> host_address   The host IPv6 address (16 bytes). All zeros if not available.
+        uint32 host_address_ttl     The host address TTL in seconds.
+        array<uint8> txt_data       The TXT record data.
+        bool txt_data_truncated     True if the TXT data was truncated.
+        uint32 txt_data_ttl         The TXT data TTL in seconds.
+      }
+      </literallayout>
+    -->
+    <method name="DnsResolveService">
+      <arg name="instance_label" type="s"/>
+      <arg name="service_name" type="s"/>
+      <arg name="config" type="(ayquyyyyy)"/>
+      <arg name="info" type="(uqqqsayuaybu)" direction="out"/>
+    </method>
+
     <!-- DnsQueryConfig: The default DNS query config used by the DNS client.
       When setting, a zero value in any field means "unspecified" and is
       replaced by the OpenThread build-time default for that field. Only
