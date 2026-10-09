@@ -79,6 +79,8 @@ otbrError DBusMessageEncode(DBusMessageIter *aIter, const ChannelQuality &aQuali
 otbrError DBusMessageExtract(DBusMessageIter *aIter, ChannelQuality &aQuality);
 otbrError DBusMessageEncode(DBusMessageIter *aIter, const TxtEntry &aTxtEntry);
 otbrError DBusMessageExtract(DBusMessageIter *aIter, TxtEntry &aTxtEntry);
+otbrError DBusMessageEncode(DBusMessageIter *aIter, const DnsQueryConfig &aConfig);
+otbrError DBusMessageExtract(DBusMessageIter *aIter, DnsQueryConfig &aConfig);
 otbrError DBusMessageEncode(DBusMessageIter *aIter, const SrpServerInfo::Registration &aRegistration);
 otbrError DBusMessageExtract(DBusMessageIter *aIter, SrpServerInfo::Registration &aRegistration);
 otbrError DBusMessageEncode(DBusMessageIter *aIter, const SrpServerInfo::ResponseCounters &aResponseCounters);
@@ -156,6 +158,12 @@ template <> struct DBusTypeTrait<Ip6Prefix>
 {
     // struct of {array of bytes, byte}
     static constexpr const char *TYPE_AS_STRING = "(ayy)";
+};
+
+template <> struct DBusTypeTrait<DnsQueryConfig>
+{
+    // struct of {array of bytes, uint16, uint32, byte, byte, byte, byte, byte}
+    static constexpr const char *TYPE_AS_STRING = "(ayquyyyyy)";
 };
 
 template <> struct DBusTypeTrait<ExternalRoute>

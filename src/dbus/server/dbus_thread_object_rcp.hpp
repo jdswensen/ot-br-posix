@@ -122,6 +122,7 @@ private:
     otError SetFeatureFlagListDataHandler(DBusMessageIter &aIter);
     otError SetRadioRegionHandler(DBusMessageIter &aIter);
     otError SetDnsUpstreamQueryState(DBusMessageIter &aIter);
+    otError SetDnsQueryConfigHandler(DBusMessageIter &aIter);
     otError SetNat64Cidr(DBusMessageIter &aIter);
 #if OTBR_ENABLE_EPSKC
     otError SetEphemeralKeyEnabled(DBusMessageIter &aIter);
@@ -185,6 +186,7 @@ private:
 #endif
     otError GetInfraLinkInfo(DBusMessageIter &aIter);
     otError GetDnsUpstreamQueryState(DBusMessageIter &aIter);
+    otError GetDnsQueryConfigHandler(DBusMessageIter &aIter);
     otError GetTelemetryDataHandler(DBusMessageIter &aIter);
     otError GetCapabilitiesHandler(DBusMessageIter &aIter);
 

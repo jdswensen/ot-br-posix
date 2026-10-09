@@ -489,6 +489,50 @@ struct TxtEntry
     std::vector<uint8_t> mValue;
 };
 
+struct DnsQueryConfig
+{
+    /**
+     * The DNS server IPv6 address (16 bytes). All zeros for unspecified.
+     */
+    std::vector<uint8_t> mServerAddress;
+
+    /**
+     * The DNS server port number. Zero for unspecified.
+     */
+    uint16_t mServerPort;
+
+    /**
+     * Wait time (in milliseconds) to receive a response. Zero for unspecified.
+     */
+    uint32_t mResponseTimeout;
+
+    /**
+     * Maximum tx attempts before reporting failure. Zero for unspecified.
+     */
+    uint8_t mMaxTxAttempts;
+
+    /**
+     * Recursion flag (`otDnsRecursionFlag`): 0:unspecified, 1:recursion desired, 2:no recursion.
+     */
+    uint8_t mRecursionFlag;
+
+    /**
+     * NAT64 mode (`otDnsNat64Mode`): 0:unspecified, 1:allow, 2:disallow.
+     */
+    uint8_t mNat64Mode;
+
+    /**
+     * Service resolution mode (`otDnsServiceMode`): 0:unspecified, 1:SRV, 2:TXT, 3:SRV+TXT,
+     * 4:SRV and TXT separately, 5:SRV+TXT first then separately on failure.
+     */
+    uint8_t mServiceMode;
+
+    /**
+     * Transport protocol (`otDnsTransportProto`): 0:unspecified, 1:UDP, 2:TCP.
+     */
+    uint8_t mTransportProto;
+};
+
 enum SrpServerState : uint8_t
 {
     OTBR_SRP_SERVER_STATE_DISABLED = 0, ///< The SRP server is disabled.

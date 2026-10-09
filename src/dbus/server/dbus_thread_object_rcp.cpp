@@ -33,6 +33,7 @@
 #include <openthread/border_agent.h>
 #include <openthread/border_router.h>
 #include <openthread/channel_monitor.h>
+#include <openthread/dns_client.h>
 #include <openthread/dnssd_server.h>
 #include <openthread/instance.h>
 #include <openthread/joiner.h>
@@ -190,6 +191,10 @@ otbrError DBusThreadObjectRcp::Init(void)
                                std::bind(&DBusThreadObjectRcp::SetRadioRegionHandler, this, _1));
     RegisterSetPropertyHandler(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_PROPERTY_DNS_UPSTREAM_QUERY_STATE,
                                std::bind(&DBusThreadObjectRcp::SetDnsUpstreamQueryState, this, _1));
+#if OTBR_ENABLE_DNS_CLIENT
+    RegisterSetPropertyHandler(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_PROPERTY_DNS_QUERY_CONFIG,
+                               std::bind(&DBusThreadObjectRcp::SetDnsQueryConfigHandler, this, _1));
+#endif
 #if OTBR_ENABLE_NAT64
     RegisterSetPropertyHandler(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_PROPERTY_NAT64_CIDR,
                                std::bind(&DBusThreadObjectRcp::SetNat64Cidr, this, _1));
@@ -332,6 +337,10 @@ otbrError DBusThreadObjectRcp::Init(void)
 #endif
     RegisterGetPropertyHandler(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_PROPERTY_DNS_UPSTREAM_QUERY_STATE,
                                std::bind(&DBusThreadObjectRcp::GetDnsUpstreamQueryState, this, _1));
+#if OTBR_ENABLE_DNS_CLIENT
+    RegisterGetPropertyHandler(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_PROPERTY_DNS_QUERY_CONFIG,
+                               std::bind(&DBusThreadObjectRcp::GetDnsQueryConfigHandler, this, _1));
+#endif
 #if OTBR_ENABLE_TELEMETRY_DATA_API
     RegisterGetPropertyHandler(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_PROPERTY_TELEMETRY_DATA,
                                std::bind(&DBusThreadObjectRcp::GetTelemetryDataHandler, this, _1));
@@ -2279,6 +2288,71 @@ otError DBusThreadObjectRcp::GetDnsUpstreamQueryState(DBusMessageIter &aIter)
     VerifyOrExit(DBusMessageEncodeToVariant(&aIter, otDnssdUpstreamQueryIsEnabled(mHost.GetInstance())) ==
                      OTBR_ERROR_NONE,
                  error = OT_ERROR_INVALID_ARGS);
+
+exit:
+    return error;
+#else
+    OTBR_UNUSED_VARIABLE(aIter);
+
+    return OT_ERROR_NOT_IMPLEMENTED;
+#endif
+}
+
+otError DBusThreadObjectRcp::SetDnsQueryConfigHandler(DBusMessageIter &aIter)
+{
+#if OTBR_ENABLE_DNS_CLIENT
+    auto             threadHelper = mHost.GetThreadHelper();
+    DnsQueryConfig   config;
+    otDnsQueryConfig otConfig;
+    otError          error = OT_ERROR_NONE;
+
+    VerifyOrExit(DBusMessageExtractFromVariant(&aIter, config) == OTBR_ERROR_NONE, error = OT_ERROR_INVALID_ARGS);
+    VerifyOrExit(config.mServerAddress.size() == OT_IP6_ADDRESS_SIZE, error = OT_ERROR_INVALID_ARGS);
+    VerifyOrExit(config.mRecursionFlag <= OT_DNS_FLAG_NO_RECURSION, error = OT_ERROR_INVALID_ARGS);
+    VerifyOrExit(config.mNat64Mode <= OT_DNS_NAT64_DISALLOW, error = OT_ERROR_INVALID_ARGS);
+    VerifyOrExit(config.mServiceMode <= OT_DNS_SERVICE_MODE_SRV_TXT_OPTIMIZE, error = OT_ERROR_INVALID_ARGS);
+    VerifyOrExit(config.mTransportProto <= OT_DNS_TRANSPORT_TCP, error = OT_ERROR_INVALID_ARGS);
+
+    memset(&otConfig, 0, sizeof(otConfig));
+    memcpy(otConfig.mServerSockAddr.mAddress.mFields.m8, config.mServerAddress.data(), OT_IP6_ADDRESS_SIZE);
+    otConfig.mServerSockAddr.mPort = config.mServerPort;
+    otConfig.mResponseTimeout      = config.mResponseTimeout;
+    otConfig.mMaxTxAttempts        = config.mMaxTxAttempts;
+    otConfig.mRecursionFlag        = static_cast<otDnsRecursionFlag>(config.mRecursionFlag);
+    otConfig.mNat64Mode            = static_cast<otDnsNat64Mode>(config.mNat64Mode);
+    otConfig.mServiceMode          = static_cast<otDnsServiceMode>(config.mServiceMode);
+    otConfig.mTransportProto       = static_cast<otDnsTransportProto>(config.mTransportProto);
+
+    otDnsClientSetDefaultConfig(threadHelper->GetInstance(), &otConfig);
+
+exit:
+    return error;
+#else
+    OTBR_UNUSED_VARIABLE(aIter);
+
+    return OT_ERROR_NOT_IMPLEMENTED;
+#endif
+}
+
+otError DBusThreadObjectRcp::GetDnsQueryConfigHandler(DBusMessageIter &aIter)
+{
+#if OTBR_ENABLE_DNS_CLIENT
+    auto                    threadHelper = mHost.GetThreadHelper();
+    otError                 error        = OT_ERROR_NONE;
+    DnsQueryConfig          config;
+    const otDnsQueryConfig *otConfig = otDnsClientGetDefaultConfig(threadHelper->GetInstance());
+
+    config.mServerAddress.assign(otConfig->mServerSockAddr.mAddress.mFields.m8,
+                                 otConfig->mServerSockAddr.mAddress.mFields.m8 + OT_IP6_ADDRESS_SIZE);
+    config.mServerPort      = otConfig->mServerSockAddr.mPort;
+    config.mResponseTimeout = otConfig->mResponseTimeout;
+    config.mMaxTxAttempts   = otConfig->mMaxTxAttempts;
+    config.mRecursionFlag   = static_cast<uint8_t>(otConfig->mRecursionFlag);
+    config.mNat64Mode       = static_cast<uint8_t>(otConfig->mNat64Mode);
+    config.mServiceMode     = static_cast<uint8_t>(otConfig->mServiceMode);
+    config.mTransportProto  = static_cast<uint8_t>(otConfig->mTransportProto);
+
+    VerifyOrExit(DBusMessageEncodeToVariant(&aIter, config) == OTBR_ERROR_NONE, error = OT_ERROR_INVALID_ARGS);
 
 exit:
     return error;
