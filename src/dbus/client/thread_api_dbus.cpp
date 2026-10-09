@@ -488,6 +488,16 @@ ClientError ThreadApiDBus::SetLinkMode(const LinkModeConfig &aConfig)
     return SetProperty(OTBR_DBUS_PROPERTY_LINK_MODE, aConfig);
 }
 
+ClientError ThreadApiDBus::SetDnsQueryConfig(const DnsQueryConfig &aConfig)
+{
+    return SetProperty(OTBR_DBUS_PROPERTY_DNS_QUERY_CONFIG, aConfig);
+}
+
+ClientError ThreadApiDBus::GetDnsQueryConfig(DnsQueryConfig &aConfig)
+{
+    return GetProperty(OTBR_DBUS_PROPERTY_DNS_QUERY_CONFIG, aConfig);
+}
+
 ClientError ThreadApiDBus::SetRadioRegion(const std::string &aRadioRegion)
 {
     return SetProperty(OTBR_DBUS_PROPERTY_RADIO_REGION, aRadioRegion);

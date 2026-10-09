@@ -999,6 +999,28 @@
       <annotation name="org.freedesktop.DBus.Property.EmitsChangedSignal" value="false"/>
     </property>
 
+    <!-- DnsQueryConfig: The default DNS query config used by the DNS client.
+      When setting, a zero value in any field means "unspecified" and is
+      replaced by the OpenThread build-time default for that field. Only
+      available when built with OTBR_DNS_CLIENT.
+      <literallayout>
+      struct {
+        array<uint8> server_address   The DNS server IPv6 address (16 bytes). All zeros for unspecified.
+        uint16 server_port            The DNS server port number. Zero for unspecified.
+        uint32 response_timeout       Wait time in milliseconds to receive a response. Zero for unspecified.
+        uint8 max_tx_attempts         Maximum tx attempts before reporting failure. Zero for unspecified.
+        uint8 recursion_flag          0: unspecified, 1: recursion desired, 2: no recursion.
+        uint8 nat64_mode              0: unspecified, 1: allow NAT64, 2: disallow NAT64.
+        uint8 service_mode            0: unspecified, 1: SRV, 2: TXT, 3: SRV+TXT, 4: SRV and TXT separately,
+                                      5: SRV+TXT first, then separately on failure.
+        uint8 transport_proto         0: unspecified, 1: UDP, 2: TCP.
+      }
+      </literallayout>
+    -->
+    <property name="DnsQueryConfig" type="(ayquyyyyy)" access="readwrite">
+      <annotation name="org.freedesktop.DBus.Property.EmitsChangedSignal" value="false"/>
+    </property>
+
     <!-- TelemetryData: The Thread telemetry data (defined as proto/thread_telemetry.proto)
       in binary form. -->
     <property name="TelemetryData" type="ay" access="read">

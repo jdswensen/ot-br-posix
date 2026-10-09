@@ -326,6 +326,20 @@ public:
     ClientError SetLinkMode(const LinkModeConfig &aConfig);
 
     /**
+     * This method sets the default DNS query config used by the DNS client.
+     *
+     * A zero value in any field means "unspecified" and is replaced by the
+     * OpenThread build-time default for that field.
+     *
+     * @param[in] aConfig  The DNS query config.
+     *
+     * @retval ERROR_NONE  Successfully performed the dbus function call
+     * @retval ERROR_DBUS  dbus encode/decode error
+     * @retval ...         OpenThread defined error value otherwise
+     */
+    ClientError SetDnsQueryConfig(const DnsQueryConfig &aConfig);
+
+    /**
      * This method sets the radio region.
      *
      * @param[in] aRadioRegion  The radio region.
@@ -379,6 +393,17 @@ public:
      * @retval ...         OpenThread defined error value otherwise
      */
     ClientError GetLinkMode(LinkModeConfig &aConfig);
+
+    /**
+     * This method gets the default DNS query config used by the DNS client.
+     *
+     * @param[out] aConfig  The DNS query config.
+     *
+     * @retval ERROR_NONE  Successfully performed the dbus function call
+     * @retval ERROR_DBUS  dbus encode/decode error
+     * @retval ...         OpenThread defined error value otherwise
+     */
+    ClientError GetDnsQueryConfig(DnsQueryConfig &aConfig);
 
     /**
      * This method gets the current device role.
