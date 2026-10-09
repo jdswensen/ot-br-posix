@@ -489,6 +489,33 @@ struct TxtEntry
     std::vector<uint8_t> mValue;
 };
 
+struct DnsTxtEntry
+{
+    /**
+     * The TXT entry key.
+     *
+     * Empty for an entry whose key was too long to parse; in that case
+     * `mValue` holds the entire encoded TXT entry.
+     */
+    std::string mKey;
+
+    /**
+     * Whether the entry has a value.
+     *
+     * TRUE when the entry is a key/value pair ("key=value" or the empty value
+     * "key="); in that case `mValue` holds the value (which may be empty).
+     * FALSE when the entry is a key-only boolean attribute ("key" with no
+     * '='); in that case `mValue` is empty. This distinguishes an empty value
+     * from an absent one, which both map to an empty `mValue`.
+     */
+    bool mHasValue;
+
+    /**
+     * The TXT entry value. Empty when `mHasValue` is FALSE.
+     */
+    std::vector<uint8_t> mValue;
+};
+
 struct DnsQueryConfig
 {
     /**
@@ -531,6 +558,59 @@ struct DnsQueryConfig
      * Transport protocol (`otDnsTransportProto`): 0:unspecified, 1:UDP, 2:TCP.
      */
     uint8_t mTransportProto;
+};
+
+struct DnsServiceInfo
+{
+    /**
+     * The service record TTL (in seconds).
+     */
+    uint32_t mTtl;
+
+    /**
+     * The service port number.
+     */
+    uint16_t mPort;
+
+    /**
+     * The service priority.
+     */
+    uint16_t mPriority;
+
+    /**
+     * The service weight.
+     */
+    uint16_t mWeight;
+
+    /**
+     * The service host name.
+     */
+    std::string mHostName;
+
+    /**
+     * The host IPv6 address (16 bytes). All zeros if not available.
+     */
+    std::vector<uint8_t> mHostAddress;
+
+    /**
+     * The host address TTL (in seconds).
+     */
+    uint32_t mHostAddressTtl;
+
+    /**
+     * The TXT record entries, parsed into key/value pairs.
+     */
+    std::vector<DnsTxtEntry> mTxtEntries;
+
+    /**
+     * Whether the TXT record data was truncated.
+     */
+    bool mTxtDataTruncated;
+
+    /**
+     * The TXT record data TTL (in seconds).
+     */
+    uint32_t mTxtDataTtl;
 };
 
 enum SrpServerState : uint8_t

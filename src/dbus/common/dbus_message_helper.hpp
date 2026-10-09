@@ -79,8 +79,12 @@ otbrError DBusMessageEncode(DBusMessageIter *aIter, const ChannelQuality &aQuali
 otbrError DBusMessageExtract(DBusMessageIter *aIter, ChannelQuality &aQuality);
 otbrError DBusMessageEncode(DBusMessageIter *aIter, const TxtEntry &aTxtEntry);
 otbrError DBusMessageExtract(DBusMessageIter *aIter, TxtEntry &aTxtEntry);
+otbrError DBusMessageEncode(DBusMessageIter *aIter, const DnsTxtEntry &aTxtEntry);
+otbrError DBusMessageExtract(DBusMessageIter *aIter, DnsTxtEntry &aTxtEntry);
 otbrError DBusMessageEncode(DBusMessageIter *aIter, const DnsQueryConfig &aConfig);
 otbrError DBusMessageExtract(DBusMessageIter *aIter, DnsQueryConfig &aConfig);
+otbrError DBusMessageEncode(DBusMessageIter *aIter, const DnsServiceInfo &aInfo);
+otbrError DBusMessageExtract(DBusMessageIter *aIter, DnsServiceInfo &aInfo);
 otbrError DBusMessageEncode(DBusMessageIter *aIter, const SrpServerInfo::Registration &aRegistration);
 otbrError DBusMessageExtract(DBusMessageIter *aIter, SrpServerInfo::Registration &aRegistration);
 otbrError DBusMessageEncode(DBusMessageIter *aIter, const SrpServerInfo::ResponseCounters &aResponseCounters);
@@ -259,6 +263,18 @@ template <> struct DBusTypeTrait<std::vector<TxtEntry>>
 {
     // array of struct of { string, array<uint8> }
     static constexpr const char *TYPE_AS_STRING = "a(say)";
+};
+
+template <> struct DBusTypeTrait<DnsTxtEntry>
+{
+    // struct of { string, bool, array<uint8> }
+    static constexpr const char *TYPE_AS_STRING = "(sbay)";
+};
+
+template <> struct DBusTypeTrait<std::vector<DnsTxtEntry>>
+{
+    // array of struct of { string, bool, array<uint8> }
+    static constexpr const char *TYPE_AS_STRING = "a(sbay)";
 };
 
 template <> struct DBusTypeTrait<SrpServerState>

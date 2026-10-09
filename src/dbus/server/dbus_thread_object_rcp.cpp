@@ -33,6 +33,7 @@
 #include <openthread/border_agent.h>
 #include <openthread/border_router.h>
 #include <openthread/channel_monitor.h>
+#include <openthread/dns.h>
 #include <openthread/dns_client.h>
 #include <openthread/dnssd_server.h>
 #include <openthread/instance.h>
@@ -168,6 +169,10 @@ otbrError DBusThreadObjectRcp::Init(void)
                    std::bind(&DBusThreadObjectRcp::LeaveNetworkHandler, this, _1));
     RegisterMethod(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_SET_NAT64_ENABLED_METHOD,
                    std::bind(&DBusThreadObjectRcp::SetNat64Enabled, this, _1));
+#if OTBR_ENABLE_DNS_CLIENT
+    RegisterMethod(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_DNS_RESOLVE_SERVICE_METHOD,
+                   std::bind(&DBusThreadObjectRcp::DnsResolveServiceHandler, this, _1));
+#endif
 #if OTBR_ENABLE_EPSKC
     RegisterMethod(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_ACTIVATE_EPHEMERAL_KEY_MODE_METHOD,
                    std::bind(&DBusThreadObjectRcp::ActivateEphemeralKeyModeHandler, this, _1));
@@ -2298,6 +2303,36 @@ exit:
 #endif
 }
 
+#if OTBR_ENABLE_DNS_CLIENT
+static otError ConvertToOtDnsQueryConfig(const DnsQueryConfig &aConfig, otDnsQueryConfig &aOtConfig)
+{
+    otError error = OT_ERROR_NONE;
+
+    VerifyOrExit(aConfig.mServerAddress.empty() || aConfig.mServerAddress.size() == OT_IP6_ADDRESS_SIZE,
+                 error = OT_ERROR_INVALID_ARGS);
+    VerifyOrExit(aConfig.mRecursionFlag <= OT_DNS_FLAG_NO_RECURSION, error = OT_ERROR_INVALID_ARGS);
+    VerifyOrExit(aConfig.mNat64Mode <= OT_DNS_NAT64_DISALLOW, error = OT_ERROR_INVALID_ARGS);
+    VerifyOrExit(aConfig.mServiceMode <= OT_DNS_SERVICE_MODE_SRV_TXT_OPTIMIZE, error = OT_ERROR_INVALID_ARGS);
+    VerifyOrExit(aConfig.mTransportProto <= OT_DNS_TRANSPORT_TCP, error = OT_ERROR_INVALID_ARGS);
+
+    memset(&aOtConfig, 0, sizeof(aOtConfig));
+    if (!aConfig.mServerAddress.empty())
+    {
+        memcpy(aOtConfig.mServerSockAddr.mAddress.mFields.m8, aConfig.mServerAddress.data(), OT_IP6_ADDRESS_SIZE);
+    }
+    aOtConfig.mServerSockAddr.mPort = aConfig.mServerPort;
+    aOtConfig.mResponseTimeout      = aConfig.mResponseTimeout;
+    aOtConfig.mMaxTxAttempts        = aConfig.mMaxTxAttempts;
+    aOtConfig.mRecursionFlag        = static_cast<otDnsRecursionFlag>(aConfig.mRecursionFlag);
+    aOtConfig.mNat64Mode            = static_cast<otDnsNat64Mode>(aConfig.mNat64Mode);
+    aOtConfig.mServiceMode          = static_cast<otDnsServiceMode>(aConfig.mServiceMode);
+    aOtConfig.mTransportProto       = static_cast<otDnsTransportProto>(aConfig.mTransportProto);
+
+exit:
+    return error;
+}
+#endif // OTBR_ENABLE_DNS_CLIENT
+
 otError DBusThreadObjectRcp::SetDnsQueryConfigHandler(DBusMessageIter &aIter)
 {
 #if OTBR_ENABLE_DNS_CLIENT
@@ -2307,21 +2342,7 @@ otError DBusThreadObjectRcp::SetDnsQueryConfigHandler(DBusMessageIter &aIter)
     otError          error = OT_ERROR_NONE;
 
     VerifyOrExit(DBusMessageExtractFromVariant(&aIter, config) == OTBR_ERROR_NONE, error = OT_ERROR_INVALID_ARGS);
-    VerifyOrExit(config.mServerAddress.size() == OT_IP6_ADDRESS_SIZE, error = OT_ERROR_INVALID_ARGS);
-    VerifyOrExit(config.mRecursionFlag <= OT_DNS_FLAG_NO_RECURSION, error = OT_ERROR_INVALID_ARGS);
-    VerifyOrExit(config.mNat64Mode <= OT_DNS_NAT64_DISALLOW, error = OT_ERROR_INVALID_ARGS);
-    VerifyOrExit(config.mServiceMode <= OT_DNS_SERVICE_MODE_SRV_TXT_OPTIMIZE, error = OT_ERROR_INVALID_ARGS);
-    VerifyOrExit(config.mTransportProto <= OT_DNS_TRANSPORT_TCP, error = OT_ERROR_INVALID_ARGS);
-
-    memset(&otConfig, 0, sizeof(otConfig));
-    memcpy(otConfig.mServerSockAddr.mAddress.mFields.m8, config.mServerAddress.data(), OT_IP6_ADDRESS_SIZE);
-    otConfig.mServerSockAddr.mPort = config.mServerPort;
-    otConfig.mResponseTimeout      = config.mResponseTimeout;
-    otConfig.mMaxTxAttempts        = config.mMaxTxAttempts;
-    otConfig.mRecursionFlag        = static_cast<otDnsRecursionFlag>(config.mRecursionFlag);
-    otConfig.mNat64Mode            = static_cast<otDnsNat64Mode>(config.mNat64Mode);
-    otConfig.mServiceMode          = static_cast<otDnsServiceMode>(config.mServiceMode);
-    otConfig.mTransportProto       = static_cast<otDnsTransportProto>(config.mTransportProto);
+    SuccessOrExit(error = ConvertToOtDnsQueryConfig(config, otConfig));
 
     otDnsClientSetDefaultConfig(threadHelper->GetInstance(), &otConfig);
 
@@ -2360,6 +2381,117 @@ exit:
     OTBR_UNUSED_VARIABLE(aIter);
 
     return OT_ERROR_NOT_IMPLEMENTED;
+#endif
+}
+
+#if OTBR_ENABLE_DNS_CLIENT
+static std::vector<DnsTxtEntry> ParseDnsTxtEntries(const uint8_t *aTxtData, uint16_t aTxtDataSize)
+{
+    std::vector<DnsTxtEntry> entries;
+    otDnsTxtEntryIterator    iterator;
+    otDnsTxtEntry            entry;
+
+    otDnsInitTxtEntryIterator(&iterator, aTxtData, aTxtDataSize);
+
+    while (otDnsGetNextTxtEntry(&iterator, &entry) == OT_ERROR_NONE)
+    {
+        DnsTxtEntry parsed{};
+
+        // When the key is too long to parse, `mKey` is NULL and the whole
+        // encoded entry is returned in `mValue`. Represent that with an empty
+        // key and the raw bytes as the value.
+        if (entry.mKey != nullptr)
+        {
+            parsed.mKey = entry.mKey;
+        }
+
+        // `mValue == NULL` marks a key-only boolean attribute ("key"); a
+        // non-NULL `mValue` marks a key/value pair, which may carry an empty
+        // value ("key="). `mHasValue` preserves that distinction.
+        parsed.mHasValue = (entry.mValue != nullptr);
+        if (parsed.mHasValue)
+        {
+            parsed.mValue.assign(entry.mValue, entry.mValue + entry.mValueLength);
+        }
+
+        entries.push_back(std::move(parsed));
+    }
+
+    return entries;
+}
+
+static void HandleDnsServiceResolution(otError aError, const otDnsServiceResponse *aResponse, void *aContext)
+{
+    constexpr uint16_t kTxtDataMaxSize = 512;
+
+    std::unique_ptr<DBusRequest> request(static_cast<DBusRequest *>(aContext));
+    otError                      error = aError;
+    DnsServiceInfo               info{};
+    otDnsServiceInfo             serviceInfo;
+    char                         hostNameBuffer[OT_DNS_MAX_NAME_SIZE];
+    uint8_t                      txtDataBuffer[kTxtDataMaxSize];
+
+    SuccessOrExit(error);
+
+    memset(&serviceInfo, 0, sizeof(serviceInfo));
+    serviceInfo.mHostNameBuffer     = hostNameBuffer;
+    serviceInfo.mHostNameBufferSize = sizeof(hostNameBuffer);
+    serviceInfo.mTxtData            = txtDataBuffer;
+    serviceInfo.mTxtDataSize        = sizeof(txtDataBuffer);
+
+    SuccessOrExit(error = otDnsServiceResponseGetServiceInfo(aResponse, &serviceInfo));
+
+    info.mTtl      = serviceInfo.mTtl;
+    info.mPort     = serviceInfo.mPort;
+    info.mPriority = serviceInfo.mPriority;
+    info.mWeight   = serviceInfo.mWeight;
+    info.mHostName = hostNameBuffer;
+    info.mHostAddress.assign(serviceInfo.mHostAddress.mFields.m8,
+                             serviceInfo.mHostAddress.mFields.m8 + OT_IP6_ADDRESS_SIZE);
+    info.mHostAddressTtl   = serviceInfo.mHostAddressTtl;
+    info.mTxtEntries       = ParseDnsTxtEntries(txtDataBuffer, serviceInfo.mTxtDataSize);
+    info.mTxtDataTruncated = serviceInfo.mTxtDataTruncated;
+    info.mTxtDataTtl       = serviceInfo.mTxtDataTtl;
+
+exit:
+    if (error == OT_ERROR_NONE)
+    {
+        request->Reply(std::make_tuple(info));
+    }
+    else
+    {
+        request->ReplyOtResult(error);
+    }
+}
+#endif // OTBR_ENABLE_DNS_CLIENT
+
+void DBusThreadObjectRcp::DnsResolveServiceHandler(DBusRequest &aRequest)
+{
+#if OTBR_ENABLE_DNS_CLIENT
+    otError                      error = OT_ERROR_NONE;
+    std::string                  instanceLabel;
+    std::string                  serviceName;
+    DnsQueryConfig               config;
+    otDnsQueryConfig             otConfig;
+    auto                         args = std::tie(instanceLabel, serviceName, config);
+    std::unique_ptr<DBusRequest> request(new DBusRequest(aRequest));
+
+    VerifyOrExit(DBusMessageToTuple(*aRequest.GetMessage(), args) == OTBR_ERROR_NONE, error = OT_ERROR_INVALID_ARGS);
+    VerifyOrExit(!instanceLabel.empty() && !serviceName.empty(), error = OT_ERROR_INVALID_ARGS);
+    SuccessOrExit(error = ConvertToOtDnsQueryConfig(config, otConfig));
+
+    SuccessOrExit(error = otDnsClientResolveService(mHost.GetThreadHelper()->GetInstance(), instanceLabel.c_str(),
+                                                    serviceName.c_str(), HandleDnsServiceResolution, request.get(),
+                                                    &otConfig));
+    request.release();
+
+exit:
+    if (error != OT_ERROR_NONE)
+    {
+        aRequest.ReplyOtResult(error);
+    }
+#else
+    aRequest.ReplyOtResult(OT_ERROR_NOT_IMPLEMENTED);
 #endif
 }
 

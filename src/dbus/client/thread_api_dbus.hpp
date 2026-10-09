@@ -57,6 +57,7 @@ public:
     using ScanHandler       = std::function<void(const std::vector<ActiveScanResult> &)>;
     using EnergyScanHandler = std::function<void(const std::vector<EnergyScanResult> &)>;
     using OtResultHandler   = std::function<void(ClientError)>;
+    using DnsResolveServiceHandler = std::function<void(ClientError, const DnsServiceInfo &)>;
 
     /**
      * The constructor of a d-bus object.
@@ -338,6 +339,32 @@ public:
      * @retval ...         OpenThread defined error value otherwise
      */
     ClientError SetDnsQueryConfig(const DnsQueryConfig &aConfig);
+
+    /**
+     * This method resolves a DNS service instance using the DNS client.
+     *
+     * @p aHandler is invoked when the DNS response is received or the query
+     * times out. The host address in the result is all zeros when it was not
+     * provided in the response.
+     *
+     * In @p aConfig, a zero value in any field (and an empty server address)
+     * means "unspecified" and inherits that field from the default query
+     * config (see SetDnsQueryConfig); a default-constructed config uses the
+     * default query config unchanged.
+     *
+     * @param[in] aInstanceLabel  The service instance label (e.g. "my-printer").
+     * @param[in] aServiceName    The full service name (e.g. "_ipps._tcp.default.service.arpa.").
+     * @param[in] aConfig         The per-query config override.
+     * @param[in] aHandler        The handler invoked with the resolution result.
+     *
+     * @retval ERROR_NONE  Successfully sent the dbus function call
+     * @retval ERROR_DBUS  dbus encode/decode error
+     * @retval ...         OpenThread defined error value otherwise
+     */
+    ClientError DnsResolveService(const std::string              &aInstanceLabel,
+                                  const std::string              &aServiceName,
+                                  const DnsQueryConfig           &aConfig,
+                                  const DnsResolveServiceHandler &aHandler);
 
     /**
      * This method sets the radio region.
@@ -940,6 +967,7 @@ private:
     static void sScanPendingCallHandler(DBusPendingCall *aPending, void *aThreadApiDBus);
     void        ScanPendingCallHandler(DBusPendingCall *aPending);
     void        EnergyScanPendingCallHandler(DBusPendingCall *aPending);
+    void        DnsResolveServicePendingCallHandler(DBusPendingCall *aPending);
 
     static void EmptyFree(void *) {}
 
@@ -947,12 +975,13 @@ private:
 
     DBusConnection *mConnection;
 
-    ScanHandler       mScanHandler;
-    EnergyScanHandler mEnergyScanHandler;
-    OtResultHandler   mAttachHandler;
-    OtResultHandler   mDetachHandler;
-    OtResultHandler   mFactoryResetHandler;
-    OtResultHandler   mJoinerHandler;
+    ScanHandler              mScanHandler;
+    EnergyScanHandler        mEnergyScanHandler;
+    DnsResolveServiceHandler mDnsResolveServiceHandler;
+    OtResultHandler          mAttachHandler;
+    OtResultHandler          mDetachHandler;
+    OtResultHandler          mFactoryResetHandler;
+    OtResultHandler          mJoinerHandler;
 
     std::vector<DeviceRoleHandler> mDeviceRoleHandlers;
 };

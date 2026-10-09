@@ -228,6 +228,50 @@ void ThreadApiDBus::EnergyScanPendingCallHandler(DBusPendingCall *aPending)
     mEnergyScanHandler = nullptr;
 }
 
+ClientError ThreadApiDBus::DnsResolveService(const std::string              &aInstanceLabel,
+                                             const std::string              &aServiceName,
+                                             const DnsQueryConfig           &aConfig,
+                                             const DnsResolveServiceHandler &aHandler)
+{
+    ClientError error = ClientError::ERROR_NONE;
+    const auto  args  = std::tie(aInstanceLabel, aServiceName, aConfig);
+
+    VerifyOrExit(aHandler != nullptr, error = ClientError::OT_ERROR_INVALID_ARGS);
+    VerifyOrExit(mDnsResolveServiceHandler == nullptr, error = ClientError::OT_ERROR_INVALID_STATE);
+    mDnsResolveServiceHandler = aHandler;
+
+    error = CallDBusMethodAsync(
+        OTBR_DBUS_DNS_RESOLVE_SERVICE_METHOD, args,
+        &ThreadApiDBus::sHandleDBusPendingCall<&ThreadApiDBus::DnsResolveServicePendingCallHandler>);
+    if (error != ClientError::ERROR_NONE)
+    {
+        mDnsResolveServiceHandler = nullptr;
+    }
+exit:
+    return error;
+}
+
+void ThreadApiDBus::DnsResolveServicePendingCallHandler(DBusPendingCall *aPending)
+{
+    ClientError       ret = ClientError::OT_ERROR_FAILED;
+    DnsServiceInfo    info{};
+    UniqueDBusMessage message(dbus_pending_call_steal_reply(aPending));
+    auto              args    = std::tie(info);
+    auto              handler = mDnsResolveServiceHandler;
+
+    if (message != nullptr)
+    {
+        ret = CheckErrorMessage(message.get());
+        if (ret == ClientError::ERROR_NONE && DBusMessageToTuple(*message, args) != OTBR_ERROR_NONE)
+        {
+            ret = ClientError::ERROR_DBUS;
+        }
+    }
+
+    mDnsResolveServiceHandler = nullptr;
+    handler(ret, info);
+}
+
 ClientError ThreadApiDBus::PermitUnsecureJoin(uint16_t aPort, uint32_t aSeconds)
 {
     return CallDBusMethodSync(OTBR_DBUS_PERMIT_UNSECURE_JOIN_METHOD, std::tie(aPort, aSeconds));
