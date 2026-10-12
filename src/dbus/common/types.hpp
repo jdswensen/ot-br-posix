@@ -586,6 +586,19 @@ struct DnsServiceInfo
     uint32_t mTxtDataTtl;
 };
 
+struct DnsHostAddress
+{
+    /**
+     * The host IPv6 address (16 bytes).
+     */
+    std::vector<uint8_t> mAddress;
+
+    /**
+     * The address TTL (in seconds).
+     */
+    uint32_t mTtl;
+};
+
 enum SrpServerState : uint8_t
 {
     OTBR_SRP_SERVER_STATE_DISABLED = 0, ///< The SRP server is disabled.

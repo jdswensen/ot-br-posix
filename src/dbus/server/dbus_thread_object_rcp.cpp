@@ -171,6 +171,8 @@ otbrError DBusThreadObjectRcp::Init(void)
 #if OTBR_ENABLE_DNS_CLIENT
     RegisterMethod(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_DNS_RESOLVE_SERVICE_METHOD,
                    std::bind(&DBusThreadObjectRcp::DnsResolveServiceHandler, this, _1));
+    RegisterMethod(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_DNS_RESOLVE_ADDRESS_METHOD,
+                   std::bind(&DBusThreadObjectRcp::DnsResolveAddressHandler, this, _1));
 #endif
 #if OTBR_ENABLE_EPSKC
     RegisterMethod(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_ACTIVATE_EPHEMERAL_KEY_MODE_METHOD,
@@ -2428,6 +2430,74 @@ exit:
     }
 }
 #endif // OTBR_ENABLE_DNS_CLIENT
+
+#if OTBR_ENABLE_DNS_CLIENT
+static void HandleDnsAddressResolution(otError aError, const otDnsAddressResponse *aResponse, void *aContext)
+{
+    std::unique_ptr<DBusRequest> request(static_cast<DBusRequest *>(aContext));
+    otError                      error = aError;
+    std::vector<DnsHostAddress>  addresses;
+    otIp6Address                 address;
+    uint32_t                     ttl;
+
+    SuccessOrExit(error);
+
+    for (uint16_t index = 0;; index++)
+    {
+        otError indexError = otDnsAddressResponseGetAddress(aResponse, index, &address, &ttl);
+
+        if (indexError == OT_ERROR_NOT_FOUND)
+        {
+            break;
+        }
+        SuccessOrExit(error = indexError);
+
+        DnsHostAddress entry;
+
+        entry.mAddress.assign(address.mFields.m8, address.mFields.m8 + OT_IP6_ADDRESS_SIZE);
+        entry.mTtl = ttl;
+        addresses.push_back(entry);
+    }
+
+exit:
+    if (error == OT_ERROR_NONE)
+    {
+        request->Reply(std::make_tuple(addresses));
+    }
+    else
+    {
+        request->ReplyOtResult(error);
+    }
+}
+#endif // OTBR_ENABLE_DNS_CLIENT
+
+void DBusThreadObjectRcp::DnsResolveAddressHandler(DBusRequest &aRequest)
+{
+#if OTBR_ENABLE_DNS_CLIENT
+    otError                      error = OT_ERROR_NONE;
+    std::string                  hostName;
+    DnsQueryConfig               config;
+    otDnsQueryConfig             otConfig;
+    auto                         args = std::tie(hostName, config);
+    std::unique_ptr<DBusRequest> request(new DBusRequest(aRequest));
+
+    VerifyOrExit(DBusMessageToTuple(*aRequest.GetMessage(), args) == OTBR_ERROR_NONE, error = OT_ERROR_INVALID_ARGS);
+    VerifyOrExit(!hostName.empty(), error = OT_ERROR_INVALID_ARGS);
+    SuccessOrExit(error = ConvertToOtDnsQueryConfig(config, otConfig));
+
+    SuccessOrExit(error = otDnsClientResolveAddress(mHost.GetThreadHelper()->GetInstance(), hostName.c_str(),
+                                                    HandleDnsAddressResolution, request.get(), &otConfig));
+    request.release();
+
+exit:
+    if (error != OT_ERROR_NONE)
+    {
+        aRequest.ReplyOtResult(error);
+    }
+#else
+    aRequest.ReplyOtResult(OT_ERROR_NOT_IMPLEMENTED);
+#endif
+}
 
 void DBusThreadObjectRcp::DnsResolveServiceHandler(DBusRequest &aRequest)
 {

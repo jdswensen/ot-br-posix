@@ -1037,6 +1037,32 @@
       <arg name="info" type="(uqqqsayuaybu)" direction="out"/>
     </method>
 
+    <!-- DnsResolveAddress: Resolve a host name to its IPv6 addresses via an
+      AAAA DNS query. The reply arrives when the DNS response is received or
+      the query times out. Only available when built with OTBR_DNS_CLIENT.
+      @host_name: The full host name to resolve (e.g. "myhost.default.service.arpa.").
+      @config: Per-query config override, in the same format as the
+        DnsQueryConfig property. A zero value in any field (and an empty
+        server address) means "unspecified" and inherits that field from the
+        default query config, so an all-zero struct uses the default config
+        unchanged. Note the worst-case query time is
+        response_timeout x max_tx_attempts; the caller must use a D-Bus call
+        timeout larger than that or the call fails client-side before the
+        DNS query completes.
+      @addresses: The resolved addresses.
+      <literallayout>
+      array of struct {
+        array<uint8> address   The host IPv6 address (16 bytes).
+        uint32 ttl             The address TTL in seconds.
+      }
+      </literallayout>
+    -->
+    <method name="DnsResolveAddress">
+      <arg name="host_name" type="s"/>
+      <arg name="config" type="(ayquyyyyy)"/>
+      <arg name="addresses" type="a(ayu)" direction="out"/>
+    </method>
+
     <!-- DnsQueryConfig: The default DNS query config used by the DNS client.
       When setting, a zero value in any field means "unspecified" and is
       replaced by the OpenThread build-time default for that field. Only
