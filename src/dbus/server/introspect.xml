@@ -1125,6 +1125,34 @@
       <annotation name="org.freedesktop.DBus.Property.EmitsChangedSignal" value="false"/>
     </property>
 
+    <!-- DnsSrpServers: The DNS/SRP servers advertised in the Thread Network
+      Data of the current partition. The advertised port is the SRP port;
+      by convention the DNS-SD server on these devices listens on port 53 at
+      the same addresses. The anycast address is the service anycast locator
+      computed from the mesh-local prefix and the entry's service ID.
+      <literallayout>
+      struct {
+        array of struct {         Unicast entries.
+          array<uint8> address      The server IPv6 address (16 bytes).
+          uint16 port               The advertised SRP port number.
+          uint16 rloc16             The RLOC16 of the advertising device.
+          uint8 origin              0: address/port from service data (an
+                                    infrastructure-reachable address),
+                                    1: address/port from server data (the
+                                    server's mesh address).
+        }
+        array of struct {         Anycast entries.
+          array<uint8> address      The service anycast address (16 bytes).
+          uint8 sequence_number     The sequence number of the entry.
+          uint16 rloc16             The RLOC16 of the advertising device.
+        }
+      }
+      </literallayout>
+    -->
+    <property name="DnsSrpServers" type="(a(ayqqy)a(ayyq))" access="read">
+      <annotation name="org.freedesktop.DBus.Property.EmitsChangedSignal" value="false"/>
+    </property>
+
     <!-- TelemetryData: The Thread telemetry data (defined as proto/thread_telemetry.proto)
       in binary form. -->
     <property name="TelemetryData" type="ay" access="read">

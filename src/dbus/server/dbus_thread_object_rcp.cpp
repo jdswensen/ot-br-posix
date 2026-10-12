@@ -349,6 +349,8 @@ otbrError DBusThreadObjectRcp::Init(void)
     RegisterGetPropertyHandler(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_PROPERTY_DNS_QUERY_CONFIG,
                                std::bind(&DBusThreadObjectRcp::GetDnsQueryConfigHandler, this, _1));
 #endif
+    RegisterGetPropertyHandler(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_PROPERTY_DNS_SRP_SERVERS,
+                               std::bind(&DBusThreadObjectRcp::GetDnsSrpServersHandler, this, _1));
 #if OTBR_ENABLE_TELEMETRY_DATA_API
     RegisterGetPropertyHandler(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_PROPERTY_TELEMETRY_DATA,
                                std::bind(&DBusThreadObjectRcp::GetTelemetryDataHandler, this, _1));
@@ -2385,6 +2387,90 @@ exit:
 
     return OT_ERROR_NOT_IMPLEMENTED;
 #endif
+}
+
+otError DBusThreadObjectRcp::GetDnsSrpServersHandler(DBusMessageIter &aIter)
+{
+    static constexpr uint32_t kThreadEnterpriseNumber     = 44970;
+    static constexpr uint8_t  kDnsSrpAnycastServiceNumber = 0x5c;
+    static constexpr uint8_t  kDnsSrpUnicastServiceNumber = 0x5d;
+    static constexpr uint16_t kAloc16ServiceStart         = 0xfc10;
+
+    auto                  threadHelper = mHost.GetThreadHelper();
+    otInstance           *instance     = threadHelper->GetInstance();
+    otError               error        = OT_ERROR_NONE;
+    otNetworkDataIterator iterator     = OT_NETWORK_DATA_ITERATOR_INIT;
+    otServiceConfig       config;
+    DnsSrpServers         servers;
+
+    while (otNetDataGetNextService(instance, &iterator, &config) == OT_ERROR_NONE)
+    {
+        if (config.mEnterpriseNumber != kThreadEnterpriseNumber || config.mServiceDataLength < 1)
+        {
+            continue;
+        }
+
+        switch (config.mServiceData[0])
+        {
+        case kDnsSrpAnycastServiceNumber:
+            if (config.mServiceDataLength >= 2)
+            {
+                DnsSrpAnycastServer      server{};
+                const otMeshLocalPrefix *prefix = otThreadGetMeshLocalPrefix(instance);
+                const uint16_t           aloc16 = kAloc16ServiceStart + config.mServiceId;
+                const uint8_t            iid[]  = {0,
+                                                   0,
+                                                   0,
+                                                   0xff,
+                                                   0xfe,
+                                                   0,
+                                                   static_cast<uint8_t>(aloc16 >> 8),
+                                                   static_cast<uint8_t>(aloc16 & 0xff)};
+
+                server.mAddress.assign(prefix->m8, prefix->m8 + OT_MESH_LOCAL_PREFIX_SIZE);
+                server.mAddress.insert(server.mAddress.end(), iid, iid + sizeof(iid));
+                server.mSequenceNumber = config.mServiceData[1];
+                server.mRloc16         = config.mServerConfig.mRloc16;
+                servers.mAnycastServers.push_back(server);
+            }
+            break;
+
+        case kDnsSrpUnicastServiceNumber:
+            if (config.mServiceDataLength >= 1 + OT_IP6_ADDRESS_SIZE + sizeof(uint16_t))
+            {
+                // Address and port are in the service data.
+                DnsSrpUnicastServer server{};
+                const uint8_t      *data = &config.mServiceData[1];
+
+                server.mAddress.assign(data, data + OT_IP6_ADDRESS_SIZE);
+                server.mPort   = static_cast<uint16_t>(data[OT_IP6_ADDRESS_SIZE] << 8 | data[OT_IP6_ADDRESS_SIZE + 1]);
+                server.mRloc16 = config.mServerConfig.mRloc16;
+                server.mOrigin = OTBR_DNS_SRP_UNICAST_ORIGIN_SERVICE_DATA;
+                servers.mUnicastServers.push_back(server);
+            }
+            else if (config.mServerConfig.mServerDataLength >= OT_IP6_ADDRESS_SIZE + sizeof(uint16_t))
+            {
+                // Address and port are in the server data.
+                DnsSrpUnicastServer server{};
+                const uint8_t      *data = config.mServerConfig.mServerData;
+
+                server.mAddress.assign(data, data + OT_IP6_ADDRESS_SIZE);
+                server.mPort   = static_cast<uint16_t>(data[OT_IP6_ADDRESS_SIZE] << 8 | data[OT_IP6_ADDRESS_SIZE + 1]);
+                server.mRloc16 = config.mServerConfig.mRloc16;
+                server.mOrigin = OTBR_DNS_SRP_UNICAST_ORIGIN_SERVER_DATA;
+                servers.mUnicastServers.push_back(server);
+            }
+            break;
+
+        default:
+            break;
+        }
+    }
+
+    VerifyOrExit(DBusMessageEncodeToVariant(&aIter, servers) == OTBR_ERROR_NONE, error = OT_ERROR_INVALID_ARGS);
+
+exit:
+    return error;
 }
 
 #if OTBR_ENABLE_DNS_CLIENT

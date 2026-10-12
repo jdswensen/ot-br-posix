@@ -87,6 +87,12 @@ otbrError DBusMessageEncode(DBusMessageIter *aIter, const DnsHostAddress &aAddre
 otbrError DBusMessageExtract(DBusMessageIter *aIter, DnsHostAddress &aAddress);
 otbrError DBusMessageEncode(DBusMessageIter *aIter, const DnsBrowseInstanceInfo &aInfo);
 otbrError DBusMessageExtract(DBusMessageIter *aIter, DnsBrowseInstanceInfo &aInfo);
+otbrError DBusMessageEncode(DBusMessageIter *aIter, const DnsSrpUnicastServer &aServer);
+otbrError DBusMessageExtract(DBusMessageIter *aIter, DnsSrpUnicastServer &aServer);
+otbrError DBusMessageEncode(DBusMessageIter *aIter, const DnsSrpAnycastServer &aServer);
+otbrError DBusMessageExtract(DBusMessageIter *aIter, DnsSrpAnycastServer &aServer);
+otbrError DBusMessageEncode(DBusMessageIter *aIter, const DnsSrpServers &aServers);
+otbrError DBusMessageExtract(DBusMessageIter *aIter, DnsSrpServers &aServers);
 otbrError DBusMessageEncode(DBusMessageIter *aIter, const SrpServerInfo::Registration &aRegistration);
 otbrError DBusMessageExtract(DBusMessageIter *aIter, SrpServerInfo::Registration &aRegistration);
 otbrError DBusMessageEncode(DBusMessageIter *aIter, const SrpServerInfo::ResponseCounters &aResponseCounters);
@@ -176,6 +182,25 @@ template <> struct DBusTypeTrait<DnsHostAddress>
 {
     // struct of {array of bytes, uint32}
     static constexpr const char *TYPE_AS_STRING = "(ayu)";
+};
+
+template <> struct DBusTypeTrait<DnsSrpUnicastServer>
+{
+    // struct of {array of bytes, uint16, uint16, byte}
+    static constexpr const char *TYPE_AS_STRING = "(ayqqy)";
+};
+
+template <> struct DBusTypeTrait<DnsSrpAnycastServer>
+{
+    // struct of {array of bytes, byte, uint16}
+    static constexpr const char *TYPE_AS_STRING = "(ayyq)";
+};
+
+template <> struct DBusTypeTrait<DnsSrpServers>
+{
+    // struct of {array of {array of bytes, uint16, uint16, byte},
+    //            array of {array of bytes, byte, uint16}}
+    static constexpr const char *TYPE_AS_STRING = "(a(ayqqy)a(ayyq))";
 };
 
 template <> struct DBusTypeTrait<DnsBrowseInstanceInfo>

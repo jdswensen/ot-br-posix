@@ -595,6 +595,84 @@ exit:
     return error;
 }
 
+otbrError DBusMessageEncode(DBusMessageIter *aIter, const DnsSrpUnicastServer &aServer)
+{
+    DBusMessageIter sub;
+    otbrError       error = OTBR_ERROR_NONE;
+    auto            args  = std::tie(aServer.mAddress, aServer.mPort, aServer.mRloc16, aServer.mOrigin);
+
+    VerifyOrExit(dbus_message_iter_open_container(aIter, DBUS_TYPE_STRUCT, nullptr, &sub), error = OTBR_ERROR_DBUS);
+    SuccessOrExit(error = ConvertToDBusMessage(&sub, args));
+    VerifyOrExit(dbus_message_iter_close_container(aIter, &sub) == true, error = OTBR_ERROR_DBUS);
+exit:
+    return error;
+}
+
+otbrError DBusMessageExtract(DBusMessageIter *aIter, DnsSrpUnicastServer &aServer)
+{
+    DBusMessageIter sub;
+    otbrError       error = OTBR_ERROR_NONE;
+    auto            args  = std::tie(aServer.mAddress, aServer.mPort, aServer.mRloc16, aServer.mOrigin);
+
+    SuccessOrExit(error = DbusMessageIterRecurse(aIter, &sub, DBUS_TYPE_STRUCT));
+    SuccessOrExit(error = ConvertToTuple(&sub, args));
+    dbus_message_iter_next(aIter);
+exit:
+    return error;
+}
+
+otbrError DBusMessageEncode(DBusMessageIter *aIter, const DnsSrpAnycastServer &aServer)
+{
+    DBusMessageIter sub;
+    otbrError       error = OTBR_ERROR_NONE;
+    auto            args  = std::tie(aServer.mAddress, aServer.mSequenceNumber, aServer.mRloc16);
+
+    VerifyOrExit(dbus_message_iter_open_container(aIter, DBUS_TYPE_STRUCT, nullptr, &sub), error = OTBR_ERROR_DBUS);
+    SuccessOrExit(error = ConvertToDBusMessage(&sub, args));
+    VerifyOrExit(dbus_message_iter_close_container(aIter, &sub) == true, error = OTBR_ERROR_DBUS);
+exit:
+    return error;
+}
+
+otbrError DBusMessageExtract(DBusMessageIter *aIter, DnsSrpAnycastServer &aServer)
+{
+    DBusMessageIter sub;
+    otbrError       error = OTBR_ERROR_NONE;
+    auto            args  = std::tie(aServer.mAddress, aServer.mSequenceNumber, aServer.mRloc16);
+
+    SuccessOrExit(error = DbusMessageIterRecurse(aIter, &sub, DBUS_TYPE_STRUCT));
+    SuccessOrExit(error = ConvertToTuple(&sub, args));
+    dbus_message_iter_next(aIter);
+exit:
+    return error;
+}
+
+otbrError DBusMessageEncode(DBusMessageIter *aIter, const DnsSrpServers &aServers)
+{
+    DBusMessageIter sub;
+    otbrError       error = OTBR_ERROR_NONE;
+    auto            args  = std::tie(aServers.mUnicastServers, aServers.mAnycastServers);
+
+    VerifyOrExit(dbus_message_iter_open_container(aIter, DBUS_TYPE_STRUCT, nullptr, &sub), error = OTBR_ERROR_DBUS);
+    SuccessOrExit(error = ConvertToDBusMessage(&sub, args));
+    VerifyOrExit(dbus_message_iter_close_container(aIter, &sub) == true, error = OTBR_ERROR_DBUS);
+exit:
+    return error;
+}
+
+otbrError DBusMessageExtract(DBusMessageIter *aIter, DnsSrpServers &aServers)
+{
+    DBusMessageIter sub;
+    otbrError       error = OTBR_ERROR_NONE;
+    auto            args  = std::tie(aServers.mUnicastServers, aServers.mAnycastServers);
+
+    SuccessOrExit(error = DbusMessageIterRecurse(aIter, &sub, DBUS_TYPE_STRUCT));
+    SuccessOrExit(error = ConvertToTuple(&sub, args));
+    dbus_message_iter_next(aIter);
+exit:
+    return error;
+}
+
 otbrError DBusMessageEncode(DBusMessageIter *aIter, const DnsHostAddress &aAddress)
 {
     DBusMessageIter sub;

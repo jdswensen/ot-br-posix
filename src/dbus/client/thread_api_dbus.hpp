@@ -485,6 +485,21 @@ public:
     ClientError GetDnsQueryConfig(DnsQueryConfig &aConfig);
 
     /**
+     * This method gets the DNS/SRP servers advertised in the Thread Network
+     * Data of the current partition.
+     *
+     * The advertised port is the SRP port; by convention the DNS-SD server
+     * on these devices listens on port 53 at the same addresses.
+     *
+     * @param[out] aServers  The advertised DNS/SRP servers.
+     *
+     * @retval ERROR_NONE  Successfully performed the dbus function call
+     * @retval ERROR_DBUS  dbus encode/decode error
+     * @retval ...         OpenThread defined error value otherwise
+     */
+    ClientError GetDnsSrpServers(DnsSrpServers &aServers);
+
+    /**
      * This method gets the current device role.
      *
      * @param[out] aDeviceRole  The device role

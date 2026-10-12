@@ -190,6 +190,7 @@ private:
     otError GetInfraLinkInfo(DBusMessageIter &aIter);
     otError GetDnsUpstreamQueryState(DBusMessageIter &aIter);
     otError GetDnsQueryConfigHandler(DBusMessageIter &aIter);
+    otError GetDnsSrpServersHandler(DBusMessageIter &aIter);
     otError GetTelemetryDataHandler(DBusMessageIter &aIter);
     otError GetCapabilitiesHandler(DBusMessageIter &aIter);
 

@@ -614,6 +614,76 @@ struct DnsHostAddress
     uint32_t mTtl;
 };
 
+enum DnsSrpUnicastOrigin : uint8_t
+{
+    /**
+     * The address and port are from the entry's service data (an
+     * infrastructure-reachable address published by the border router).
+     */
+    OTBR_DNS_SRP_UNICAST_ORIGIN_SERVICE_DATA = 0,
+
+    /**
+     * The address and port are from the entry's server data (the server's
+     * mesh address).
+     */
+    OTBR_DNS_SRP_UNICAST_ORIGIN_SERVER_DATA = 1,
+};
+
+struct DnsSrpUnicastServer
+{
+    /**
+     * The server IPv6 address (16 bytes).
+     */
+    std::vector<uint8_t> mAddress;
+
+    /**
+     * The advertised SRP port number.
+     */
+    uint16_t mPort;
+
+    /**
+     * The RLOC16 of the device advertising the entry.
+     */
+    uint16_t mRloc16;
+
+    /**
+     * Where the address and port come from (`DnsSrpUnicastOrigin`).
+     */
+    uint8_t mOrigin;
+};
+
+struct DnsSrpAnycastServer
+{
+    /**
+     * The service anycast address (16 bytes), computed from the mesh-local
+     * prefix and the entry's service ID.
+     */
+    std::vector<uint8_t> mAddress;
+
+    /**
+     * The sequence number of the anycast entry.
+     */
+    uint8_t mSequenceNumber;
+
+    /**
+     * The RLOC16 of the device advertising the entry.
+     */
+    uint16_t mRloc16;
+};
+
+struct DnsSrpServers
+{
+    /**
+     * The unicast DNS/SRP service entries in the network data.
+     */
+    std::vector<DnsSrpUnicastServer> mUnicastServers;
+
+    /**
+     * The anycast DNS/SRP service entries in the network data.
+     */
+    std::vector<DnsSrpAnycastServer> mAnycastServers;
+};
+
 enum SrpServerState : uint8_t
 {
     OTBR_SRP_SERVER_STATE_DISABLED = 0, ///< The SRP server is disabled.
