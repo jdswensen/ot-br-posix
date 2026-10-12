@@ -109,6 +109,7 @@ private:
     void LeaveNetworkHandler(DBusRequest &aRequest);
     void SetNat64Enabled(DBusRequest &aRequest);
     void DnsResolveServiceHandler(DBusRequest &aRequest);
+    void DnsResolveAddressHandler(DBusRequest &aRequest);
 #if OTBR_ENABLE_EPSKC
     void ActivateEphemeralKeyModeHandler(DBusRequest &aRequest);
     void DeactivateEphemeralKeyModeHandler(DBusRequest &aRequest);

@@ -58,6 +58,7 @@ public:
     using EnergyScanHandler = std::function<void(const std::vector<EnergyScanResult> &)>;
     using OtResultHandler   = std::function<void(ClientError)>;
     using DnsResolveServiceHandler = std::function<void(ClientError, const DnsServiceInfo &)>;
+    using DnsResolveAddressHandler = std::function<void(ClientError, const std::vector<DnsHostAddress> &)>;
 
     /**
      * The constructor of a d-bus object.
@@ -365,6 +366,30 @@ public:
                                   const std::string              &aServiceName,
                                   const DnsQueryConfig           &aConfig,
                                   const DnsResolveServiceHandler &aHandler);
+
+    /**
+     * This method resolves a host name to its IPv6 addresses (AAAA query)
+     * using the DNS client.
+     *
+     * @p aHandler is invoked when the DNS response is received or the query
+     * times out.
+     *
+     * In @p aConfig, a zero value in any field (and an empty server address)
+     * means "unspecified" and inherits that field from the default query
+     * config (see SetDnsQueryConfig); a default-constructed config uses the
+     * default query config unchanged.
+     *
+     * @param[in] aHostName  The full host name to resolve (e.g. "myhost.default.service.arpa.").
+     * @param[in] aConfig    The per-query config override.
+     * @param[in] aHandler   The handler invoked with the resolution result.
+     *
+     * @retval ERROR_NONE  Successfully sent the dbus function call
+     * @retval ERROR_DBUS  dbus encode/decode error
+     * @retval ...         OpenThread defined error value otherwise
+     */
+    ClientError DnsResolveAddress(const std::string              &aHostName,
+                                  const DnsQueryConfig           &aConfig,
+                                  const DnsResolveAddressHandler &aHandler);
 
     /**
      * This method sets the radio region.
@@ -968,6 +993,7 @@ private:
     void        ScanPendingCallHandler(DBusPendingCall *aPending);
     void        EnergyScanPendingCallHandler(DBusPendingCall *aPending);
     void        DnsResolveServicePendingCallHandler(DBusPendingCall *aPending);
+    void        DnsResolveAddressPendingCallHandler(DBusPendingCall *aPending);
 
     static void EmptyFree(void *) {}
 
@@ -978,6 +1004,7 @@ private:
     ScanHandler              mScanHandler;
     EnergyScanHandler        mEnergyScanHandler;
     DnsResolveServiceHandler mDnsResolveServiceHandler;
+    DnsResolveAddressHandler mDnsResolveAddressHandler;
     OtResultHandler          mAttachHandler;
     OtResultHandler          mDetachHandler;
     OtResultHandler          mFactoryResetHandler;
