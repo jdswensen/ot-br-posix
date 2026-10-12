@@ -627,6 +627,11 @@ ClientError ThreadApiDBus::GetDnsQueryConfig(DnsQueryConfig &aConfig)
     return GetProperty(OTBR_DBUS_PROPERTY_DNS_QUERY_CONFIG, aConfig);
 }
 
+ClientError ThreadApiDBus::GetDnsSrpServers(DnsSrpServers &aServers)
+{
+    return GetProperty(OTBR_DBUS_PROPERTY_DNS_SRP_SERVERS, aServers);
+}
+
 ClientError ThreadApiDBus::SetRadioRegion(const std::string &aRadioRegion)
 {
     return SetProperty(OTBR_DBUS_PROPERTY_RADIO_REGION, aRadioRegion);
