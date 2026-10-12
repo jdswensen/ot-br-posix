@@ -59,6 +59,7 @@ public:
     using OtResultHandler   = std::function<void(ClientError)>;
     using DnsResolveServiceHandler = std::function<void(ClientError, const DnsServiceInfo &)>;
     using DnsResolveAddressHandler = std::function<void(ClientError, const std::vector<DnsHostAddress> &)>;
+    using DnsBrowseHandler         = std::function<void(ClientError, const std::vector<DnsBrowseInstanceInfo> &)>;
 
     /**
      * The constructor of a d-bus object.
@@ -390,6 +391,32 @@ public:
     ClientError DnsResolveAddress(const std::string              &aHostName,
                                   const DnsQueryConfig           &aConfig,
                                   const DnsResolveAddressHandler &aHandler);
+
+    /**
+     * This method browses (enumerates) DNS service instances for a service
+     * name (PTR query) using the DNS client.
+     *
+     * @p aHandler is invoked when the DNS response is received or the query
+     * times out. Service info fields for an instance are all zeros/empty
+     * when the browse response did not include them; in that case the
+     * instance can be resolved separately with DnsResolveService().
+     *
+     * In @p aConfig, a zero value in any field (and an empty server address)
+     * means "unspecified" and inherits that field from the default query
+     * config (see SetDnsQueryConfig); a default-constructed config uses the
+     * default query config unchanged.
+     *
+     * @param[in] aServiceName  The full service name to browse (e.g. "_ipps._tcp.default.service.arpa.").
+     * @param[in] aConfig       The per-query config override.
+     * @param[in] aHandler      The handler invoked with the browse result.
+     *
+     * @retval ERROR_NONE  Successfully sent the dbus function call
+     * @retval ERROR_DBUS  dbus encode/decode error
+     * @retval ...         OpenThread defined error value otherwise
+     */
+    ClientError DnsBrowse(const std::string      &aServiceName,
+                          const DnsQueryConfig   &aConfig,
+                          const DnsBrowseHandler &aHandler);
 
     /**
      * This method sets the radio region.
@@ -994,6 +1021,7 @@ private:
     void        EnergyScanPendingCallHandler(DBusPendingCall *aPending);
     void        DnsResolveServicePendingCallHandler(DBusPendingCall *aPending);
     void        DnsResolveAddressPendingCallHandler(DBusPendingCall *aPending);
+    void        DnsBrowsePendingCallHandler(DBusPendingCall *aPending);
 
     static void EmptyFree(void *) {}
 
@@ -1005,6 +1033,7 @@ private:
     EnergyScanHandler        mEnergyScanHandler;
     DnsResolveServiceHandler mDnsResolveServiceHandler;
     DnsResolveAddressHandler mDnsResolveAddressHandler;
+    DnsBrowseHandler         mDnsBrowseHandler;
     OtResultHandler          mAttachHandler;
     OtResultHandler          mDetachHandler;
     OtResultHandler          mFactoryResetHandler;

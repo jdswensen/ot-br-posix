@@ -173,6 +173,8 @@ otbrError DBusThreadObjectRcp::Init(void)
                    std::bind(&DBusThreadObjectRcp::DnsResolveServiceHandler, this, _1));
     RegisterMethod(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_DNS_RESOLVE_ADDRESS_METHOD,
                    std::bind(&DBusThreadObjectRcp::DnsResolveAddressHandler, this, _1));
+    RegisterMethod(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_DNS_BROWSE_METHOD,
+                   std::bind(&DBusThreadObjectRcp::DnsBrowseHandler, this, _1));
 #endif
 #if OTBR_ENABLE_EPSKC
     RegisterMethod(OTBR_DBUS_THREAD_INTERFACE, OTBR_DBUS_ACTIVATE_EPHEMERAL_KEY_MODE_METHOD,
@@ -2386,16 +2388,35 @@ exit:
 }
 
 #if OTBR_ENABLE_DNS_CLIENT
+static constexpr uint16_t kDnsTxtDataMaxSize = 512;
+
+static DnsServiceInfo ConvertToDnsServiceInfo(const otDnsServiceInfo &aServiceInfo)
+{
+    DnsServiceInfo info{};
+
+    info.mTtl      = aServiceInfo.mTtl;
+    info.mPort     = aServiceInfo.mPort;
+    info.mPriority = aServiceInfo.mPriority;
+    info.mWeight   = aServiceInfo.mWeight;
+    info.mHostName = aServiceInfo.mHostNameBuffer;
+    info.mHostAddress.assign(aServiceInfo.mHostAddress.mFields.m8,
+                             aServiceInfo.mHostAddress.mFields.m8 + OT_IP6_ADDRESS_SIZE);
+    info.mHostAddressTtl = aServiceInfo.mHostAddressTtl;
+    info.mTxtData.assign(aServiceInfo.mTxtData, aServiceInfo.mTxtData + aServiceInfo.mTxtDataSize);
+    info.mTxtDataTruncated = aServiceInfo.mTxtDataTruncated;
+    info.mTxtDataTtl       = aServiceInfo.mTxtDataTtl;
+
+    return info;
+}
+
 static void HandleDnsServiceResolution(otError aError, const otDnsServiceResponse *aResponse, void *aContext)
 {
-    constexpr uint16_t kTxtDataMaxSize = 512;
-
     std::unique_ptr<DBusRequest> request(static_cast<DBusRequest *>(aContext));
     otError                      error = aError;
     DnsServiceInfo               info{};
     otDnsServiceInfo             serviceInfo;
     char                         hostNameBuffer[OT_DNS_MAX_NAME_SIZE];
-    uint8_t                      txtDataBuffer[kTxtDataMaxSize];
+    uint8_t                      txtDataBuffer[kDnsTxtDataMaxSize];
 
     SuccessOrExit(error);
 
@@ -2406,23 +2427,70 @@ static void HandleDnsServiceResolution(otError aError, const otDnsServiceRespons
     serviceInfo.mTxtDataSize        = sizeof(txtDataBuffer);
 
     SuccessOrExit(error = otDnsServiceResponseGetServiceInfo(aResponse, &serviceInfo));
-
-    info.mTtl      = serviceInfo.mTtl;
-    info.mPort     = serviceInfo.mPort;
-    info.mPriority = serviceInfo.mPriority;
-    info.mWeight   = serviceInfo.mWeight;
-    info.mHostName = hostNameBuffer;
-    info.mHostAddress.assign(serviceInfo.mHostAddress.mFields.m8,
-                             serviceInfo.mHostAddress.mFields.m8 + OT_IP6_ADDRESS_SIZE);
-    info.mHostAddressTtl = serviceInfo.mHostAddressTtl;
-    info.mTxtData.assign(txtDataBuffer, txtDataBuffer + serviceInfo.mTxtDataSize);
-    info.mTxtDataTruncated = serviceInfo.mTxtDataTruncated;
-    info.mTxtDataTtl       = serviceInfo.mTxtDataTtl;
+    info = ConvertToDnsServiceInfo(serviceInfo);
 
 exit:
     if (error == OT_ERROR_NONE)
     {
         request->Reply(std::make_tuple(info));
+    }
+    else
+    {
+        request->ReplyOtResult(error);
+    }
+}
+
+static void HandleDnsBrowseResponse(otError aError, const otDnsBrowseResponse *aResponse, void *aContext)
+{
+    std::unique_ptr<DBusRequest>       request(static_cast<DBusRequest *>(aContext));
+    otError                            error = aError;
+    std::vector<DnsBrowseInstanceInfo> instances;
+
+    SuccessOrExit(error);
+
+    for (uint16_t index = 0;; index++)
+    {
+        char                  labelBuffer[OT_DNS_MAX_LABEL_SIZE];
+        char                  hostNameBuffer[OT_DNS_MAX_NAME_SIZE];
+        uint8_t               txtDataBuffer[kDnsTxtDataMaxSize];
+        otDnsServiceInfo      serviceInfo;
+        otError               instanceError;
+        DnsBrowseInstanceInfo instance{};
+
+        instanceError = otDnsBrowseResponseGetServiceInstance(aResponse, index, labelBuffer, sizeof(labelBuffer));
+        if (instanceError == OT_ERROR_NOT_FOUND)
+        {
+            break;
+        }
+        SuccessOrExit(error = instanceError);
+
+        instance.mLabel = labelBuffer;
+
+        memset(&serviceInfo, 0, sizeof(serviceInfo));
+        serviceInfo.mHostNameBuffer     = hostNameBuffer;
+        serviceInfo.mHostNameBufferSize = sizeof(hostNameBuffer);
+        serviceInfo.mTxtData            = txtDataBuffer;
+        serviceInfo.mTxtDataSize        = sizeof(txtDataBuffer);
+
+        instanceError = otDnsBrowseResponseGetServiceInfo(aResponse, labelBuffer, &serviceInfo);
+        if (instanceError == OT_ERROR_NONE)
+        {
+            instance.mServiceInfo = ConvertToDnsServiceInfo(serviceInfo);
+        }
+        else
+        {
+            // The browse response is not required to include service info
+            // for the instances it lists.
+            VerifyOrExit(instanceError == OT_ERROR_NOT_FOUND, error = instanceError);
+        }
+
+        instances.push_back(instance);
+    }
+
+exit:
+    if (error == OT_ERROR_NONE)
+    {
+        request->Reply(std::make_tuple(instances));
     }
     else
     {
@@ -2487,6 +2555,34 @@ void DBusThreadObjectRcp::DnsResolveAddressHandler(DBusRequest &aRequest)
 
     SuccessOrExit(error = otDnsClientResolveAddress(mHost.GetThreadHelper()->GetInstance(), hostName.c_str(),
                                                     HandleDnsAddressResolution, request.get(), &otConfig));
+    request.release();
+
+exit:
+    if (error != OT_ERROR_NONE)
+    {
+        aRequest.ReplyOtResult(error);
+    }
+#else
+    aRequest.ReplyOtResult(OT_ERROR_NOT_IMPLEMENTED);
+#endif
+}
+
+void DBusThreadObjectRcp::DnsBrowseHandler(DBusRequest &aRequest)
+{
+#if OTBR_ENABLE_DNS_CLIENT
+    otError                      error = OT_ERROR_NONE;
+    std::string                  serviceName;
+    DnsQueryConfig               config;
+    otDnsQueryConfig             otConfig;
+    auto                         args = std::tie(serviceName, config);
+    std::unique_ptr<DBusRequest> request(new DBusRequest(aRequest));
+
+    VerifyOrExit(DBusMessageToTuple(*aRequest.GetMessage(), args) == OTBR_ERROR_NONE, error = OT_ERROR_INVALID_ARGS);
+    VerifyOrExit(!serviceName.empty(), error = OT_ERROR_INVALID_ARGS);
+    SuccessOrExit(error = ConvertToOtDnsQueryConfig(config, otConfig));
+
+    SuccessOrExit(error = otDnsClientBrowse(mHost.GetThreadHelper()->GetInstance(), serviceName.c_str(),
+                                            HandleDnsBrowseResponse, request.get(), &otConfig));
     request.release();
 
 exit:

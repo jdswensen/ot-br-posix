@@ -85,6 +85,8 @@ otbrError DBusMessageEncode(DBusMessageIter *aIter, const DnsServiceInfo &aInfo)
 otbrError DBusMessageExtract(DBusMessageIter *aIter, DnsServiceInfo &aInfo);
 otbrError DBusMessageEncode(DBusMessageIter *aIter, const DnsHostAddress &aAddress);
 otbrError DBusMessageExtract(DBusMessageIter *aIter, DnsHostAddress &aAddress);
+otbrError DBusMessageEncode(DBusMessageIter *aIter, const DnsBrowseInstanceInfo &aInfo);
+otbrError DBusMessageExtract(DBusMessageIter *aIter, DnsBrowseInstanceInfo &aInfo);
 otbrError DBusMessageEncode(DBusMessageIter *aIter, const SrpServerInfo::Registration &aRegistration);
 otbrError DBusMessageExtract(DBusMessageIter *aIter, SrpServerInfo::Registration &aRegistration);
 otbrError DBusMessageEncode(DBusMessageIter *aIter, const SrpServerInfo::ResponseCounters &aResponseCounters);
@@ -174,6 +176,20 @@ template <> struct DBusTypeTrait<DnsHostAddress>
 {
     // struct of {array of bytes, uint32}
     static constexpr const char *TYPE_AS_STRING = "(ayu)";
+};
+
+template <> struct DBusTypeTrait<DnsBrowseInstanceInfo>
+{
+    // struct of {string, struct of {uint32, uint16, uint16, uint16, string,
+    //            array of bytes, uint32, array of bytes, bool, uint32}}
+    static constexpr const char *TYPE_AS_STRING = "(s(uqqqsayuaybu))";
+};
+
+template <> struct DBusTypeTrait<std::vector<DnsBrowseInstanceInfo>>
+{
+    // array of {string, struct of {uint32, uint16, uint16, uint16, string,
+    //           array of bytes, uint32, array of bytes, bool, uint32}}
+    static constexpr const char *TYPE_AS_STRING = "a(s(uqqqsayuaybu))";
 };
 
 template <> struct DBusTypeTrait<std::vector<DnsHostAddress>>

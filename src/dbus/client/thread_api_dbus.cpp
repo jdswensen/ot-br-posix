@@ -315,6 +315,48 @@ void ThreadApiDBus::DnsResolveAddressPendingCallHandler(DBusPendingCall *aPendin
     handler(ret, addresses);
 }
 
+ClientError ThreadApiDBus::DnsBrowse(const std::string      &aServiceName,
+                                     const DnsQueryConfig   &aConfig,
+                                     const DnsBrowseHandler &aHandler)
+{
+    ClientError error = ClientError::ERROR_NONE;
+    const auto  args  = std::tie(aServiceName, aConfig);
+
+    VerifyOrExit(aHandler != nullptr, error = ClientError::OT_ERROR_INVALID_ARGS);
+    VerifyOrExit(mDnsBrowseHandler == nullptr, error = ClientError::OT_ERROR_INVALID_STATE);
+    mDnsBrowseHandler = aHandler;
+
+    error = CallDBusMethodAsync(OTBR_DBUS_DNS_BROWSE_METHOD, args,
+                                &ThreadApiDBus::sHandleDBusPendingCall<&ThreadApiDBus::DnsBrowsePendingCallHandler>);
+    if (error != ClientError::ERROR_NONE)
+    {
+        mDnsBrowseHandler = nullptr;
+    }
+exit:
+    return error;
+}
+
+void ThreadApiDBus::DnsBrowsePendingCallHandler(DBusPendingCall *aPending)
+{
+    ClientError                        ret = ClientError::OT_ERROR_FAILED;
+    std::vector<DnsBrowseInstanceInfo> instances;
+    UniqueDBusMessage                  message(dbus_pending_call_steal_reply(aPending));
+    auto                               args    = std::tie(instances);
+    auto                               handler = mDnsBrowseHandler;
+
+    if (message != nullptr)
+    {
+        ret = CheckErrorMessage(message.get());
+        if (ret == ClientError::ERROR_NONE && DBusMessageToTuple(*message, args) != OTBR_ERROR_NONE)
+        {
+            ret = ClientError::ERROR_DBUS;
+        }
+    }
+
+    mDnsBrowseHandler = nullptr;
+    handler(ret, instances);
+}
+
 ClientError ThreadApiDBus::PermitUnsecureJoin(uint16_t aPort, uint32_t aSeconds)
 {
     return CallDBusMethodSync(OTBR_DBUS_PERMIT_UNSECURE_JOIN_METHOD, std::tie(aPort, aSeconds));

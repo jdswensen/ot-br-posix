@@ -586,6 +586,21 @@ struct DnsServiceInfo
     uint32_t mTxtDataTtl;
 };
 
+struct DnsBrowseInstanceInfo
+{
+    /**
+     * The service instance label (e.g. "my-printer").
+     */
+    std::string mLabel;
+
+    /**
+     * The service info for the instance. All zeros/empty when the browse
+     * response did not include service info for the instance; in that case
+     * the instance can be resolved separately.
+     */
+    DnsServiceInfo mServiceInfo;
+};
+
 struct DnsHostAddress
 {
     /**

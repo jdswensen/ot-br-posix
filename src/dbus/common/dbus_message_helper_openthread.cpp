@@ -569,6 +569,32 @@ exit:
     return error;
 }
 
+otbrError DBusMessageEncode(DBusMessageIter *aIter, const DnsBrowseInstanceInfo &aInfo)
+{
+    DBusMessageIter sub;
+    otbrError       error = OTBR_ERROR_NONE;
+    auto            args  = std::tie(aInfo.mLabel, aInfo.mServiceInfo);
+
+    VerifyOrExit(dbus_message_iter_open_container(aIter, DBUS_TYPE_STRUCT, nullptr, &sub), error = OTBR_ERROR_DBUS);
+    SuccessOrExit(error = ConvertToDBusMessage(&sub, args));
+    VerifyOrExit(dbus_message_iter_close_container(aIter, &sub) == true, error = OTBR_ERROR_DBUS);
+exit:
+    return error;
+}
+
+otbrError DBusMessageExtract(DBusMessageIter *aIter, DnsBrowseInstanceInfo &aInfo)
+{
+    DBusMessageIter sub;
+    otbrError       error = OTBR_ERROR_NONE;
+    auto            args  = std::tie(aInfo.mLabel, aInfo.mServiceInfo);
+
+    SuccessOrExit(error = DbusMessageIterRecurse(aIter, &sub, DBUS_TYPE_STRUCT));
+    SuccessOrExit(error = ConvertToTuple(&sub, args));
+    dbus_message_iter_next(aIter);
+exit:
+    return error;
+}
+
 otbrError DBusMessageEncode(DBusMessageIter *aIter, const DnsHostAddress &aAddress)
 {
     DBusMessageIter sub;
